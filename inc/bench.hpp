@@ -7,46 +7,63 @@ namespace granite {
 
         // TODO : Add donotoptimise
         // TODO : Add fast loop
-        
-        template<typename F>
-        struct repeater_t
-        {
-            F f;
-            int n;
+        struct counter_predicate {
+            int count;
 
-            template<typename FP>
-            repeater_t(FP&& fp, int n) : f(std::forward<FP>(fp)), n(n) {}
-
-            template<typename... Args>
-            void operator()(Args&&... args) {
-                for(int i{}; i < n; ++i)
-                    f(args);
-            }
-
-            template<typename... Args>
-            void operator()(Args&&... args) const {
-                for(int i{}; i < n; ++i)
-                    f(args);
+            constexpr bool operator()() noexcept {
+                return count--;
             }
         };
 
+        template<typename F, typename P>
+        struct multi_function_call_t {
+            F f;
+            P p;
+
+            void operator()() {
+                while(p())
+                    f();
+            }
+        };
+
+        template<typename F, typename P>
+        constexpr auto multi_function_call(F && f, P && p) -> multi_function_call_t<F, P> {
+            return { std::forward<F>(f), std::forward<P>(p) };
+        }
+
         template<typename F>
-        repeater_t<F> repeater(F&& f, int n) {
-            return repeater_t<F>(std::forward<F>(f), n);
+        constexpr auto repeat_function_call(F && f, int n)
+            -> multi_function_call_t<F, counter_predicate>
+        {
+            return { std::forward<F>(f), { n } };
         }
 
 
-        template<typename Generator, typename Consumer>
-        struct toto_guard {
-            toto_guard(Generator g, Consumer c) : g(g), c(c), start(g()) {}
 
-            ~toto_guard() {
-                auto stop = g();
+        template<typename G, typename It>
+        struct bench_guard_t {
+            G g;
+            It it;
+            const auto start = g();
 
-                c(start, stop);
+            ~bench_guard_t() {
+                const auto stop = g();
+
+                *it = stop - start;
             } 
         };
 
+
+        template<typename >
+        struct BenchIt {
+
+
+            auto operator()(auto input) {
+                auto bg = bench_guard(g, out_it);
+                f();
+
+            }
+        };
         
 
         
