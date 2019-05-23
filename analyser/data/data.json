@@ -1,0 +1,30 @@
+{
+    "commit" : "982374238",
+    "properties" : [
+        {
+            "test" : "Fun1",
+            "bench" : [
+                {
+                    "type" : "regular",
+                    "file" : "fun1_reg.json",
+                    "generator" : "granite"
+                },
+                {
+                    "type" : "runtime",
+                    "file" : "fun1_runtime.csv",
+                    "generator" : "granite"
+                }
+            ]
+        },
+        {
+            "test" : "Fun2",
+            "bench" : [
+                {
+                    "type" : "regular",
+                    "file" : "fun2_reg.csv",
+                    "generator" : "granite"
+                }
+            ]
+        }
+    ]
+}
