@@ -7,12 +7,14 @@
                 {
                     "type" : "regular",
                     "file" : "fun1_reg.json",
-                    "generator" : "granite"
+                    "generator" : "granite",
+                    "bench_name" : "BM_Fun1"
                 },
                 {
                     "type" : "runtime",
                     "file" : "fun1_runtime.csv",
-                    "generator" : "granite"
+                    "generator" : "granite",
+                    "bench_name" : "BM_Fun1"
                 }
             ]
         },
@@ -22,7 +24,8 @@
                 {
                     "type" : "regular",
                     "file" : "fun2_reg.csv",
-                    "generator" : "granite"
+                    "generator" : "granite",
+                    "bench_name" : "BM_Fun1"
                 }
             ]
         }
