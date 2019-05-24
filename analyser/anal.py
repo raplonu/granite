@@ -1,39 +1,19 @@
-import json
-import statistics
+# import json
+# import statistics
 
 dump_map = lambda func, *args : (lambda *args : None)(*map(func, *args))
 
 class Node:
-    def __init__(self, op, sub):
+    def __init__(self, op = None, *sub):
         self.__op = op
         self.__sub = sub
         self.__con = []
-        self.__ready = False
+        self.__has_value = False
         self.__value = None
 
         dump_map(lambda sub : sub.subscribe(self), self.__sub)
 
-    @property
-    def ready(self):
-        # print("is ready ? {}".format(self.__ready))
-        # if self.__ready :
-        #     return True
-
-        # self.__ready = all(map(Node.ready, self.__sub))
-        # print("all sub ready ? {}".format(self.__ready))
-        return self.__ready
-
-    def update(self):
-        if self.ready() :
-            self.__value = self.__op(*map(Node.get, self.__sub))
-            self.notify()
-        
-    def notify(self):
-        print("Notify everybody")
-        dump_map(Node.notify, self.__con)
-
     def subscribe(self, con):
-        # print("{} sub to {}".format(str(con), str(self)))
         self.__con.append(con)
 
     @property
@@ -43,45 +23,73 @@ class Node:
     @value.setter
     def value(self, value):
         self.__value = value
-        self.__ready = True
+        self.__has_value = True
         self.notify()
 
+    def has_value(self):
+        return self.__has_value
 
-class bench_micro_bench:
-    def __init__(self):
-        self.reset()
+    def try_update(self):
+        if(all(map(Node.has_value, self.__sub))):
+            self.value = self.__op(*map(lambda n : n.value, self.__sub))
+            self.notify()
+
+    def notify(self):
+        dump_map(Node.try_update, self.__con)
 
     def reset(self):
-        self.raw = None
-        self.mean = None
-        self.median = None
-        self.min = None
-        self.max = None
-        self.jitter = None
-        self.stddev = None
+        self.__value = None
+        self.__has_value = False
+        dump_map(Node.reset, self.__con)
 
-    def set_jitter(self, jitter):
-        self.jitter = jitter
+    def __bool__(self):
+        return self.has_value()
+
+
+class basic_bench:
+    def __init__(self):
+        self.raw = Node()
+        self.mean = Node(statistics.mean, self.raw)
+        self.median = Node(statistics.median, self.raw)
+        self.min = Node(min, self.raw)
+        self.max = Node(max, self.raw)
+        self.jitter = Node(lambda a, b : a - b, self.max, self.min)
+
+# class bench_micro_bench:
+#     def __init__(self):
+#         self.reset()
+
+#     def reset(self):
+#         self.raw = None
+#         self.mean = None
+#         self.median = None
+#         self.min = None
+#         self.max = None
+#         self.jitter = None
+#         self.stddev = None
+
+#     def set_jitter(self, jitter):
+#         self.jitter = jitter
     
 
 
 
-def parse_stat_file_google_json(file):
-    jdata = json.load(file)
+# def parse_stat_file_google_json(file):
+#     jdata = json.load(file)
 
-    mean = 
+#     mean = 
 
 
-def load_stat_file_google_json(filename):
-    with open(filename) as f :
-        jdata = json.loads(f.read())
+# def load_stat_file_google_json(filename):
+#     with open(filename) as f :
+#         jdata = json.loads(f.read())
     
-    return 
+#     return 
 
-def load_stat_file(filename, generator):
-    pass
+# def load_stat_file(filename, generator):
+#     pass
 
-class state:
-    def __init__(data):
-        self.id = data["commit"]
-        self.
+# class state:
+#     def __init__(data):
+#         self.id = data["commit"]
+#         self.

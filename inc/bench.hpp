@@ -13,29 +13,39 @@ namespace granite {
         using d_time_point = typename d_clock::time_point;
         using d_duration = typename d_clock::duration;
 
-        template<typename It>
-        struct iterator_predicate_t {
-            It end;
+        template<typename Executor>
+        struct scoped_executor {
+            Executor & executor;
 
-            iterator_predicate_t(It end):end(end) {}
-
-            bool operator()(It begin) {
-                return begin != end;
+            scoped_executor(Executor & executor) : executor(executor) {
+                executor.start();
             }
+
+            ~scoped_executor() {
+                
+            }
+        }
+
+        template<typename... Executor>
+        struct multi_executor {
+            std::tuple<Executor...> data;
         };
 
         template<typename It>
-        struct iterator_consumer {
-            It output;
+        auto iterator_predicate(const It last) {
+            return [last](const It first) {
+                return first != last;
+            }
+        }
 
-            iterator_consumer(It output):output(output) {}
-
-            template<typename Data>
-            void operator()(Data data) {
+        template<typename It>
+        auto iterator_consumer(It output) {
+            return [output] (auto data) mutable {
                 *output = data;
                 ++output;
             }
-        };
+        }
+
 
 
         template<typename It, typename P, typename C>
@@ -44,19 +54,27 @@ namespace granite {
                 consume(*input);
                 ++input;
             }
-            return { input, consume };
+            return std::make_tuple( input, consume );
         } 
 
+        template<typename InputIt, typename OutputIt>
+        auto bench(InputIt first, InputIt last, OutputIt first_o) {
+            return bench(first, iterator_predicate(last), iterator_consumer(first_o));
+        } 
 
         
 
         struct steady_timer {
             d_time_point start;
 
-            steady_timer():start(d_clock::now()){}
+            steady_timer() {}
+            
+            void start() {
+                start = d_clock::now();
+            }
 
-            std::tuple<d_time_point, d_time_point> operator()() const {
-                return { start, d_clock::now() };
+            auto stop() const {
+                return  d_clock::now() - start;
             }
 
         };
@@ -76,12 +94,14 @@ namespace granite {
             using clock_type = d_clock;
             State state;
             int iteration_nb;
-            d_time_point begin;
+            steady_timer timer;
 
             bench_iterator(State state):
                 state(state), iteration_nb(0),
-                begin(clock_type::now())
-            {}
+                timer()
+            {
+                timer.start();
+            }
 
             State& operator*() {
                 return state;
@@ -93,17 +113,12 @@ namespace granite {
             }
 
             bool end() {
-                auto time_spend =
-                    bench_iterator::clock_type::now() - begin;
-
-                return state.expired(iteration_nb, begin);
+                return state.expired(iteration_nb, timer.stop());
             }
         };
 
-        bool bench_predicate(const bench_iterator& bi) {
-            
-            
-            return bi.state.reach_limit(bi)
+        bool bench_predicate(const bench_iterator& bi) {  
+            return bi.end();
         }
 
 
