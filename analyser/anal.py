@@ -132,6 +132,53 @@ class mega_bench:
 
 
 
+
+def register(raw = None, mean = None, min = None):
+    pass
+
+def has_key(d, k):
+    return k in d
+
+def try_compute(d, f, args):
+    if all(map(lambda k: k in d, args)):
+        return f(*map(partial(dict.get, d), args))
+    else:
+        return None
+
+def get_property(d, k, f, *args):
+    if has_key(d, k):
+        return d[k]
+    else:
+        return try_compute(d, f, args)
+
+def get_mean(d):
+    return get_property(d, "mean", statistics.mean, "raw")
+
+
+def constant_function(value):
+    return lambda : value
+
+def partial_callable(fn, *callables):
+    return partial(fn, *map(lambda c: c(), callables))
+
+class lazy_get:
+    def __init__(self, data, key):
+        self.call = constant_function(data[key]) if has_key(data, key) else None
+            
+    def or_compute(slef, f, *args):
+        if self.call is None:
+            self.call = partial_callable(f, *args)
+
+        return self
+
+raw =  lazy_get(data, "raw")
+mean = lazy_get(data, "mean").or_compute(statistics.mean, raw)
+min_ = lazy_get(data, "min").or_compute(min, raw)
+max_ = lazy_get(data, "max").or_compute(max, raw)
+jitter = lazy_get(data, "jitter").or_compute(operator.sub, max_, min_)
+
+
+
 # class google_bench:
 #     def mean(bench):
 #         return bench["real_time"]
