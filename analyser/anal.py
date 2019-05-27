@@ -1,10 +1,33 @@
 import json
 import statistics
 from functools import partial
+import numpy as np
+from sklearn.linear_model import LinearRegression
 import operator
 
-
 dump_map = lambda func, *args : (lambda *args : None)(*map(func, *args))
+
+def addprop(clazz, name, fget=None, fset=None, fdel=None, doc=None):
+    setattr(clazz, name, property(fget, fset, fdel, doc))
+
+def get_get_f(name):
+    return lambda obj, n=name: getattr(obj, n).get()
+
+def get_set_f(name):
+    return lambda obj, value, n=name: getattr(obj, n).set(value)
+
+def get_del_f(name):
+    return lambda obj, n=name: None #del(getattr(obj, n))
+
+def privatename(name):
+    return '_' + name
+
+def gen_prop_f(name, doc=None):
+    pname = privatename(name)
+    return (name, get_get_f(pname), get_set_f(pname), get_del_f(pname))
+
+def addproplistname(clazz, list_name):
+    dump_map(lambda name : partial(addprop, clazz)(*gen_prop_f(name)), list_name)
 
 class Node:
     def __init__(self, op = None, *sub):
@@ -73,102 +96,75 @@ class basic_bench:
         self._jitter = Node(operator.sub, self._max, self._min)
         self._stdev = Node(statistics.stdev, self._raw)
 
-
-
-def addprop(clazz, name, fget=None, fset=None, fdel=None, doc=None):
-    setattr(clazz, name, property(fget, fset, fdel, doc))
-
-def get_get_f(name):
-    return lambda obj, n=name: getattr(obj, n).get()
-
-def get_set_f(name):
-    return lambda obj, value, n=name: getattr(obj, n).set(value)
-
-def get_del_f(name):
-    return lambda obj, n=name: None #del(getattr(obj, n))
-
-def privatename(name):
-    return '_' + name
-
-def gen_prop_f(name, doc=None):
-    pname = privatename(name)
-    return (name, get_get_f(pname), get_set_f(pname), get_del_f(pname))
-
-def addproplistname(clazz, list_name):
-    dump_map(lambda name : partial(addprop, clazz)(*gen_prop_f(name)), list_name)
-
 addproplistname(basic_bench, ["raw", "mean", "median", "min", "max", "jitter", "stdev"])
 
 
 
-class google_bench:
-    def mean(bench):
-        return bench["real_time"]
-
-    def name_match(bench, name):
-        return bench["name"] == name
-
-    def bench_by_name(benchs, name):
-        return next((bench for bench in benchs if google_bench.name_match(bench, name)), None)
-
-    def parse_bench(bench):
-        bb = basic_bench()
-        bb.mean = google_bench.mean(bench)
-
-        return bb
-
-    def benchs(jdata):
-        return jdata["benchmarks"]
-
-    def parse_names_bench(jdata, name):
-        return google_bench.parse_bench(google_bench.bench_by_name(google_bench.benchs(jdata), name))
 
 
-bench_map = {'granite' : google_bench, 'google' : google_bench}
+def compute_regression(data):
+    x, y = data
+    fit = LinearRegression().fit(x, y);
+    return fit.coef_, fit.intercept_
 
-
-def load_benchs(jdata):
-    res = {}
-    for prop in jdata["properties"]:
-        res[prop["test"]] = [bench for bench in prop["bench"]]
-    return res
-
-
-class bench_micro_bench:
+class scale_bench:
     def __init__(self):
-        self.reset()
+        self._raw = Node()
+        self._regression = Node(compute_regression, self._raw)
 
-    def reset(self):
-        self.raw = None
-        self.mean = None
-        self.median = None
-        self.min = None
-        self.max = None
-        self.jitter = None
-        self.stddev = None
-
-    def set_jitter(self, jitter):
-        self.jitter = jitter
-    
+addproplistname(scale_bench, ["raw", "regression"])
 
 
 
-def parse_stat_file_google_json(file):
-    jdata = json.load(file)
+class runtime_bench:
+    def __init__(self):
+        self._raw = Node()
+        self._regression = Node(compute_regression, self._raw)
 
-    mean = 
+addproplistname(runtime_bench, ["raw", "regression"])
 
 
-def load_stat_file_google_json(filename):
-    with open(filename) as f :
-        jdata = json.loads(f.read())
-    
-    return 
+class mega_bench:
+    def __init__(self):
+        self._basic = None
+        self._linear = None
 
-def load_stat_file(filename, generator):
-    pass
 
-# class state:
-#     def __init__(data):
-#         self.id = data["commit"]
-#         self.
+
+
+# class google_bench:
+#     def mean(bench):
+#         return bench["real_time"]
+
+#     def name_match(bench, name):
+#         return bench["name"] == name
+
+#     def bench_by_name(benchs, name):
+#         return next((bench for bench in benchs if google_bench.name_match(bench, name)), None)
+
+#     def parse_bench(bench):
+#         bb = basic_bench()
+#         bb.mean = google_bench.mean(bench)
+
+#         return bb
+
+#     def benchs(jdata):
+#         return jdata["benchmarks"]
+
+#     def parse_names_bench(jdata, name):
+#         return google_bench.parse_bench(google_bench.bench_by_name(google_bench.benchs(jdata), name))
+
+
+# bench_map = {'granite' : google_bench, 'google' : google_bench}
+
+
+# def load_benchs(jdata):
+#     res = {}
+#     for prop in jdata["properties"]:
+#         res[prop["test"]] = [bench for bench in prop["bench"]]
+#     return res
+
+
+
+
+
