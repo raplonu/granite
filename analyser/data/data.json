@@ -7,7 +7,7 @@
                 {
                     "type" : "regular",
                     "file" : "fun1_reg.json",
-                    "generator" : "granite",
+                    "generator" : "google",
                     "bench_name" : "BM_Fun1"
                 },
                 {

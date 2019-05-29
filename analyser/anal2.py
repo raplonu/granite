@@ -84,57 +84,61 @@ def match_at(value, pos):
 
 
 jdata = json_load("data/fun1_reg.json")
-cdata = csv_load("data/fun1_runtime.csv")
+cdata = csv_load("data/fun2_reg.csv")
 
-find_bench_by_name = lambda name : fc.rcompose(get("benchmarks"), first_filter(field_match("name", name)))
+json_find_bench_by_name = lambda name : fc.rcompose(get("benchmarks"), first_filter(field_match("name", name)))
+
+csv_find_bench_by_name = lambda name : first_filter(match_at(name, 0))
+
+regular_google = {
+        'mean' : get('real_time'),
+        'bench' : json_find_bench_by_name
+}
+
+regular_granite = {
+        'mean' : fc.rcompose(get(2), float, int),
+        'bench': csv_find_bench_by_name
+
+}
+
+regular_bench = {
+        'google'  : regular_google,
+        'granite' : regular_granite
+}
+
+runtime_granite = {
+        'raw' : fc.identity,
+        'bench' : fc.identity
+}
+
+runtime_bench = {
+        'granite' : runtime_granite
+}
+
+benchmarks = {
+        'regular' : regular_bench,
+        'runtime' : runtime_bench
+}
+
 
 prop_cache = cu.LRU(max_size=2048)
 
 fun1_jbench = cached_rcompose(prop_cache, jdata,
-        find_bench_by_name("BM_Fun1"), print_forward('get bench'))
+        json_find_bench_by_name("BM_Fun1"))
 
 fun1_mean = cached_rcompose(prop_cache, fun1_jbench,
-        get("real_time"), print_forward('get real_time'))
+        regular_google['mean'])
 
-fun1_rep = cached_rcompose(prop_cache, fun1_jbench,
-        get("repetitions"), print_forward('get repetitions'))
-
-fun1_cbench = cached_rcompose(prop_cache, cdata,
-        first_filter(match_at("BM_Fun1", 0)))
-
-fun1_run = cached_rcompose(prop_cache, fun1_cbench,
-        get(2))
-
-fun1_cpu = cached_rcompose(prop_cache, fun1_cbench,
-        get(3))
+# fun1_rep = cached_rcompose(prop_cache, fun1_jbench,
+#         get("repetitions"), print_forward('get repetitions'))
 
 
 
+fun2_cbench = cached_rcompose(prop_cache, cdata,
+        csv_find_bench_by_name("BM_Fun2"))
 
-# def partialize(*p_args, **p_kwargs):
-#     def inter_partialize(fn):
-#         def wrapper_partialize(*args, **kwargs):
-#             return fn(*p_args, *args, **kwargs, **p_kwargs)
-#         return wrapper_partialize
-#     return inter_partialize
+fun2_mean = cached_rcompose(prop_cache, fun2_cbench,
+        regular_granite['mean'])
 
-
-
-
-# def ft.partial_callable(fn, *cargs):
-#     return ft.partial(fn, *map(lambda c: c(), cargs))
-
-# def map_callable(fn, *cargs):
-#     return map()
-
-# class lazy_get:
-#     def __init__(self, data, key):
-        # self.call = constant_function(data[key]) if has_key(data, key) else None
-            
-#     def or_compute(slef, f, *args):
-#         if self.call is None:
-#             self.call = ft.partial_callable(f, *args)
-
-#         return self
-
-
+# fun2_cpu = cached_rcompose(prop_cache, fun2_cbench,
+#         get(3), float, int)
