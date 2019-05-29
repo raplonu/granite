@@ -1,0 +1,4 @@
+boltons==19.1.0
+numpy==1.15.4
+funcy==1.12
+scikit_learn==0.21.2
