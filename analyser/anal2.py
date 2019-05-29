@@ -38,23 +38,7 @@ def json_load(filename):
 @partialize_cached(file_data_cache)
 def csv_load(filename):
     print("Loading CSV file :{}".format(filename))
-    return list(csv.reader(open(filename)))
-
-prop_cache = cu.LRU(max_size=2048)
-
-# cached_compose = cached(prop_cache)(fc.compose)
-# cached_rcompose = cached(prop_cache)(fc.rcompose)
-
-# def cached_rcompose(*funs):
-#         return cached(prop_cache)(fc.rcompose)(*funs)
-
-# @partialize_cached(prop_cache)
-# def prop_access(jdata_loader, property_acc):
-#     res = property_acc(jdata_loader())
-#     print("Getting result : {}".format(res))
-#     return res
-
-
+    return csv.reader(open(filename))
 
 def cached_compose(cache, *funs):
         @partialize_cached(cache)
@@ -70,7 +54,7 @@ def cached_rcompose(cache, *funs):
 
 @partialize
 def print_forward(comment, x):
-        print(comment, x)
+        print(comment)
         return x
 
 @partialize
@@ -81,44 +65,48 @@ def get(key, seq):
 def equal_to(arg1, arg2):
     return arg1 == arg2
 
-
 first_filter = partialize(fc.compose(fc.first, fc.filter))
 
 @partialize
 def select_values(key, seq):
     return [s[key] for s in seq]
 
-jdata = json_load("data/fun1_reg.json")
-cdata = csv_load("data/fun1_runtime.csv")
+@partialize
+def find_pos(value, seq):
+    return list(seq).index(value)
 
 def field_match(key, value):
     return fc.compose(equal_to(value), get(key))
 
-
-get_benchs = get("benchmarks")
-
-find_bench_by_name = lambda name : fc.rcompose(get_benchs, first_filter(field_match("name", name)))
-
-fun1_bench = cached_rcompose(prop_cache, jdata,
-        find_bench_by_name("BM_Fun1"), print_forward('get bench'))
-
-fun1_mean = cached_rcompose(prop_cache, fun1_bench,
-        get("real_time"), print_forward('get real_time'))
-
-fun1_rep = cached_rcompose(prop_cache, fun1_bench,
-        get("repetitions"), print_forward('get repetitions'))
-
-
 def match_at(value, pos):
     return fc.compose(equal_to(value), get(pos))
 
-# def find_pos(value):
-#     return 
-
-fun1_run = cached_rcompose(prop_cache, cdata,
-        first_filter(match_at("BM_Fun1", 0)), get(2))
 
 
+jdata = json_load("data/fun1_reg.json")
+cdata = csv_load("data/fun1_runtime.csv")
+
+find_bench_by_name = lambda name : fc.rcompose(get("benchmarks"), first_filter(field_match("name", name)))
+
+prop_cache = cu.LRU(max_size=2048)
+
+fun1_jbench = cached_rcompose(prop_cache, jdata,
+        find_bench_by_name("BM_Fun1"), print_forward('get bench'))
+
+fun1_mean = cached_rcompose(prop_cache, fun1_jbench,
+        get("real_time"), print_forward('get real_time'))
+
+fun1_rep = cached_rcompose(prop_cache, fun1_jbench,
+        get("repetitions"), print_forward('get repetitions'))
+
+fun1_cbench = cached_rcompose(prop_cache, cdata,
+        first_filter(match_at("BM_Fun1", 0)))
+
+fun1_run = cached_rcompose(prop_cache, fun1_cbench,
+        get(2))
+
+fun1_cpu = cached_rcompose(prop_cache, fun1_cbench,
+        get(3))
 
 
 
