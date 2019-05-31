@@ -5,16 +5,15 @@
             "test" : "Fun1",
             "bench" : [
                 {
-                    "type" : "regular",
                     "file" : "fun1_reg.json",
+                    "type" : "regular",
                     "generator" : "google",
                     "bench_name" : "BM_Fun1"
                 },
                 {
-                    "type" : "runtime",
                     "file" : "fun1_runtime.csv",
-                    "generator" : "granite",
-                    "bench_name" : "BM_Fun1"
+                    "type" : "runtime",
+                    "generator" : "granite"
                 }
             ]
         },
@@ -22,8 +21,8 @@
             "test" : "Fun2",
             "bench" : [
                 {
-                    "type" : "regular",
                     "file" : "fun2_reg.csv",
+                    "type" : "regular",
                     "generator" : "granite",
                     "bench_name" : "BM_Fun1"
                 }

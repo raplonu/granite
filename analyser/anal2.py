@@ -108,7 +108,7 @@ regular_bench = {
 
 runtime_granite = {
         'raw' : fc.identity,
-        'bench' : fc.identity
+        'bench' : lambda name, data : data 
 }
 
 runtime_bench = {
