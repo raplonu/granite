@@ -4,10 +4,11 @@
 #include <vector>
 #include <numeric>
 #include <chrono>
+#include <thread>
 #include <algorithm>
 #include <benchmark/benchmark.h>
 
-
+const int NB = 1;
 using std::cout;
 
 #define FWD(...) ::std::forward<decltype(__VA_ARGS__)>(__VA_ARGS__)
@@ -42,19 +43,137 @@ struct count_iterator {
     }
 };
 
-struct count_range {
-    int size;
+// struct count_range {
+//     int size;
+
+//     constexpr count_iterator begin() const {
+//         return count_iterator{0};
+//     }
+
+//     constexpr count_iterator end() const {
+//         return count_iterator{size};
+//     }
+// };
+
+struct State {
+    int size_;
+    int scale_;
 
     constexpr count_iterator begin() const {
         return count_iterator{0};
     }
 
     constexpr count_iterator end() const {
-        return count_iterator{size};
+        return count_iterator{size_};
+    }
+
+    constexpr int scale() const { return scale_; }
+};
+
+// Run function N times and deduct mean
+struct ContextMicroBench {
+    int runNb;
+    int iterationNb;
+
+    struct ContextMicroBenchIterator {
+        int value;
+        int iterationNb;
+
+        constexpr State operator*() const noexcept {
+            return State{iterationNb, 1};
+        }
+
+        constexpr ContextMicroBenchIterator & operator++() noexcept {
+             ++value;
+             return *this;
+        }
+
+        constexpr bool operator!=(const ContextMicroBenchIterator & oci) const noexcept {
+            if(BENCHMARK_BUILTIN_EXPECT(value != oci.value, true)) return true;
+            return false;
+        }
+    };
+
+    ContextMicroBenchIterator begin() const {
+        return {{}, iterationNb};
+    }
+
+    ContextMicroBenchIterator end() const {
+        return {runNb, iterationNb};
     }
 };
 
+// Run function one time and deduct min, max, jitter
+struct ContextRealTimeBench {
+    int runNb;
 
+    struct ContextRealTimeBenchIterator {
+        int value;
+
+        constexpr State operator*() const noexcept {
+            return State{{}, 1};
+        }
+
+        constexpr ContextRealTimeBenchIterator & operator++() noexcept {
+             ++value;
+             return *this;
+        }
+
+        constexpr bool operator!=(const ContextRealTimeBenchIterator & oci) const noexcept {
+            if(BENCHMARK_BUILTIN_EXPECT(value != oci.value, true)) return true;
+            return false;
+        }
+    };
+
+
+    ContextRealTimeBenchIterator begin() const {
+        return {{}};
+    }
+
+    ContextRealTimeBenchIterator end() const {
+        return {runNb};
+    }  
+};
+
+// Run function N times with different parametters to measure scalability
+struct ContextScallableBench {
+    int runNb;
+    int scale;
+
+    struct ContextScallableBenchIterator {
+        int value;
+        int scale;
+
+
+        constexpr State operator*() const noexcept {
+            return State{1, scale};
+        }
+
+        constexpr ContextScallableBenchIterator & operator++() noexcept {
+             ++value; ++scale;
+             return *this;
+        }
+
+        constexpr bool operator!=(const ContextScallableBenchIterator & oci) const noexcept {
+            if(BENCHMARK_BUILTIN_EXPECT(value != oci.value, true)) return true;
+            return false;
+        }
+    };
+
+
+    ContextScallableBenchIterator begin() const {
+        return {{}, scale};
+    }
+
+    ContextScallableBenchIterator end() const {
+        return {runNb, scale};
+    }  
+};
+
+// Run function in particullary context
+struct ContextRunTimeBench {
+
+};
 
 
 
@@ -77,6 +196,7 @@ struct timer_bench_unit {
 };
 
 using steady_timer_bench_unit = timer_bench_unit<std::chrono::steady_clock>;
+using high_timer_bench_unit = timer_bench_unit<std::chrono::high_resolution_clock>;
 
 template<typename... Benchs> struct Staked_Bench;
 
@@ -152,19 +272,12 @@ auto bench_functor(F f, O output, E executor) {
     };
 }
 
-std::vector<int> fun(int n) {
-    std::vector<int> res(n);
-    std::iota(std::begin(res), std::end(res), 0);
-    return res;
-}
-
-
 template<class Tuple, std::size_t N>
 struct TuplePrinter {
     static void print(const Tuple& t) 
     {
         TuplePrinter<Tuple, N-1>::print(t);
-        std::cout << ", " << std::get<N-1>(t).count();
+        std::cout << ", " << (std::get<N-1>(t).count()/NB);
     }
 };
  
@@ -172,7 +285,7 @@ template<class Tuple>
 struct TuplePrinter<Tuple, 1> {
     static void print(const Tuple& t) 
     {
-        std::cout << std::get<0>(t).count();
+        std::cout << (std::get<0>(t).count()/NB);
     }
 };
  
@@ -184,33 +297,39 @@ void print(const std::tuple<Args...>& t)
     std::cout << ")\n";
 }
 
+
+std::vector<int> fun(int n) {
+    std::vector<int> res(n);
+    std::iota(std::begin(res), std::end(res), 0);
+    return res;
+}
+
+// int fun(int) {
+//     using namespace std::chrono_literals;
+//     std::this_thread::sleep_for(1ms);
+//     return {};
+// }
+
 int main()
 {
     // Context c;
     //std::vector<int> in {3, 2, 1};
-    count_range cr{100};
+    ContextScallableBench cr{300, 1};
 
     auto sb = make_staked_bench(
-        steady_timer_bench_unit{},
-        steady_timer_bench_unit{},
-        steady_timer_bench_unit{},
-        steady_timer_bench_unit{},
-        steady_timer_bench_unit{},
-        steady_timer_bench_unit{},
-        steady_timer_bench_unit{},
-        steady_timer_bench_unit{},
-        steady_timer_bench_unit{},
-        steady_timer_bench_unit{},
-        steady_timer_bench_unit{},
-        steady_timer_bench_unit{},
-        steady_timer_bench_unit{},
-        steady_timer_bench_unit{});
+        high_timer_bench_unit{},
+        high_timer_bench_unit{},
+        high_timer_bench_unit{},
+        high_timer_bench_unit{});
 
     std::vector<typename decltype(sb)::result_type> out;
 
     auto bf = bench_functor(
-        [](auto){
-            benchmark::DoNotOptimize(fun(100));
+        [](State state){
+            for(auto _ : state)
+                benchmark::DoNotOptimize(fun(100 * state.scale()));
+            
+            return state;
         },
         std::back_inserter(out),
         sb
