@@ -4,10 +4,13 @@ find_package(benchmark REQUIRED)
 
 project(granite CXX)
 
-add_executable(granite bench/main.cpp)
+add_library(granite INTERFACE)
+# add_executable(granite bench/main.cpp)
 
-target_compile_features(granite PUBLIC cxx_std_17)
+target_include_directories(inc)
 
-target_link_libraries(granite PUBLIC benchmark pthread)
+# target_compile_features(granite PUBLIC cxx_std_17)
+
+target_link_libraries(granite INTERFACE benchmark pthread)
 
 

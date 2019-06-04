@@ -8,7 +8,7 @@
 #include <algorithm>
 #include <benchmark/benchmark.h>
 
-const int NB = 1;
+const int NB = 1000;
 using std::cout;
 
 #define FWD(...) ::std::forward<decltype(__VA_ARGS__)>(__VA_ARGS__)
@@ -42,18 +42,6 @@ struct count_iterator {
         return false;
     }
 };
-
-// struct count_range {
-//     int size;
-
-//     constexpr count_iterator begin() const {
-//         return count_iterator{0};
-//     }
-
-//     constexpr count_iterator end() const {
-//         return count_iterator{size};
-//     }
-// };
 
 struct State {
     int size_;
@@ -312,39 +300,72 @@ std::vector<int> fun(int n) {
 
 int main()
 {
-    // Context c;
-    //std::vector<int> in {3, 2, 1};
-    ContextScallableBench cr{300, 1};
+    // {
+    //     cout << "Micro bench test\n";
 
-    auto sb = make_staked_bench(
-        high_timer_bench_unit{},
-        high_timer_bench_unit{},
-        high_timer_bench_unit{},
-        high_timer_bench_unit{});
+    //     ContextMicroBench c_bench{300, NB};
 
-    std::vector<typename decltype(sb)::result_type> out;
+    //     auto sb = make_staked_bench(
+    //         high_timer_bench_unit{},
+    //         high_timer_bench_unit{},
+    //         high_timer_bench_unit{},
+    //         high_timer_bench_unit{});
 
-    auto bf = bench_functor(
-        [](State state){
-            for(auto _ : state)
-                benchmark::DoNotOptimize(fun(100 * state.scale()));
-            
-            return state;
-        },
-        std::back_inserter(out),
-        sb
-    );
+    //     std::vector<typename decltype(sb)::result_type> out;
 
-    
-    std::for_each(cr.begin(), cr.end(), bf);
+    //     auto bf = bench_functor(
+    //         [](State state){
+    //             for(auto _ : state)
+    //                 benchmark::DoNotOptimize(fun(10000));
+                
+    //             return state;
+    //         },
+    //         std::back_inserter(out),
+    //         sb
+    //     );
 
-    // for (auto _ : cr) {
-    //     bf();
+        
+    //     std::for_each(c_bench.begin(), c_bench.end(), bf);
+
+    //     cout << "\n\n";
+    //     for(auto e : out){
+    //         print(e);
+    //     }
+
     // }
 
-    cout << "\n\n";
-    for(auto e : out){
-        print(e); //cout << '\n';
+    {
+        cout << "Real time bench test\n";
+
+        ContextRealTimeBench c_bench{300};
+
+        auto sb = make_staked_bench(
+            high_timer_bench_unit{},
+            high_timer_bench_unit{},
+            high_timer_bench_unit{},
+            high_timer_bench_unit{});
+
+        std::vector<typename decltype(sb)::result_type> out;
+
+        auto bf = bench_functor(
+            [](State state){
+                benchmark::DoNotOptimize(fun(10000));
+                
+                return state;
+            },
+            std::back_inserter(out),
+            sb
+        );
+
+        
+        std::for_each(c_bench.begin(), c_bench.end(), bf);
+
+        cout << "\n\n";
+        for(auto e : out){
+            auto 
+            print(e);
+        }
+
     }
     
     std::cout << "ok\n";

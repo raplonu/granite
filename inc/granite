@@ -1,0 +1,6 @@
+#ifndef GRANITE_LIBRARY
+#define GRANITE_LIBRARY
+
+namespace granite {}
+
+#endif //GRANITE_LIBRARY
