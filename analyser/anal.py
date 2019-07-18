@@ -1,217 +1,131 @@
+## Source of an Alpy
+
+import numpy as mp
 import json
-import statistics
-from functools import partial
-import numpy as np
-from sklearn.linear_model import LinearRegression
-import operator
-
-dump_map = lambda func, *args : (lambda *args : None)(*map(func, *args))
-
-def addprop(clazz, name, fget=None, fset=None, fdel=None, doc=None):
-    setattr(clazz, name, property(fget, fset, fdel, doc))
-
-def get_get_f(name):
-    return lambda obj, n=name: getattr(obj, n).get()
-
-def get_set_f(name):
-    return lambda obj, value, n=name: getattr(obj, n).set(value)
-
-def get_del_f(name):
-    return lambda obj, n=name: None #del(getattr(obj, n))
-
-def privatename(name):
-    return '_' + name
-
-def gen_prop_f(name, doc=None):
-    pname = privatename(name)
-    return (name, get_get_f(pname), get_set_f(pname), get_del_f(pname))
-
-def addproplistname(clazz, list_name):
-    dump_map(lambda name : partial(addprop, clazz)(*gen_prop_f(name)), list_name)
-
-class Node:
-    def __init__(self, op = None, *sub):
-        self.__op = op
-        self.__sub = sub
-        self.__con = []
-        self.__has_value = False
-        self.__sticky = False
-        self.__value = None
-
-        dump_map(lambda sub : sub.__subscribe(self), self.__sub)
-
-    # @property
-    def get(self):
-        return self.__value
-
-    # @value.setter
-    def set(self, value):
-        self.__set_value(value, True)
-
-    def has_value(self):
-        return self.__has_value
-
-    def __subscribe(self, con):
-        self.__con.append(con)
-
-    def __set_value(self, value, sticky):
-        self.__value = value
-        self.__has_value = True
-        self.__sticky = sticky
-        self.__notify()
-
-
-    def __try_update(self):
-        if( not self
-        and not self.__sticky
-        and all(map(Node.has_value, self.__sub))
-        ):
-            self.__set_value(
-                self.__op(*map(lambda n : n.get(), self.__sub)),
-                False
-            )
-            self.__notify()
-
-    def __notify(self):
-        dump_map(Node.__try_update, self.__con)
-
-    # def reset(self):
-    #     if self and not self.__sticky :
-    #         self.__value = None
-    #         self.__has_value = False
-    #         dump_map(Node.reset, self.__con)
-
-    def __bool__(self):
-        return self.has_value()
-
-
-
-class basic_bench:
-    def __init__(self):
-        self._raw = Node()
-        self._mean = Node(statistics.mean, self._raw)
-        self._median = Node(statistics.median, self._raw)
-        self._min = Node(min, self._raw)
-        self._max = Node(max, self._raw)
-        self._jitter = Node(operator.sub, self._max, self._min)
-        self._stdev = Node(statistics.stdev, self._raw)
-
-addproplistname(basic_bench, ["raw", "mean", "median", "min", "max", "jitter", "stdev"])
-
-
-
-
-
-def compute_regression(data):
-    x, y = data
-    fit = LinearRegression().fit(x, y);
-    return fit.coef_, fit.intercept_
-
-class scale_bench:
-    def __init__(self):
-        self._raw = Node()
-        self._regression = Node(compute_regression, self._raw)
-
-addproplistname(scale_bench, ["raw", "regression"])
-
-
-
-class runtime_bench:
-    def __init__(self):
-        self._raw = Node()
-        self._regression = Node(compute_regression, self._raw)
-
-addproplistname(runtime_bench, ["raw", "regression"])
-
-
-class mega_bench:
-    def __init__(self):
-        self._basic = None
-        self._linear = None
-
-
-
-
-
-def register(raw = None, mean = None, min = None):
-    pass
-
-def has_key(d, k):
-    return k in d
-
-def try_compute(d, f, args):
-    if all(map(lambda k: k in d, args)):
-        return f(*map(partial(dict.get, d), args))
-    else:
-        return None
-
-def get_property(d, k, f, *args):
-    if has_key(d, k):
-        return d[k]
-    else:
-        return try_compute(d, f, args)
-
-def get_mean(d):
-    return get_property(d, "mean", statistics.mean, "raw")
-
-
-def constant_function(value):
-    return lambda : value
-
-def partial_callable(fn, *callables):
-    return partial(fn, *map(lambda c: c(), callables))
-
-class lazy_get:
-    def __init__(self, data, key):
-        self.call = constant_function(data[key]) if has_key(data, key) else None
-            
-    def or_compute(slef, f, *args):
-        if self.call is None:
-            self.call = partial_callable(f, *args)
-
-        return self
-
-raw =  lazy_get(data, "raw")
-mean = lazy_get(data, "mean").or_compute(statistics.mean, raw)
-min_ = lazy_get(data, "min").or_compute(min, raw)
-max_ = lazy_get(data, "max").or_compute(max, raw)
-jitter = lazy_get(data, "jitter").or_compute(operator.sub, max_, min_)
-
-
-
-# class google_bench:
-#     def mean(bench):
-#         return bench["real_time"]
-
-#     def name_match(bench, name):
-#         return bench["name"] == name
-
-#     def bench_by_name(benchs, name):
-#         return next((bench for bench in benchs if google_bench.name_match(bench, name)), None)
-
-#     def parse_bench(bench):
-#         bb = basic_bench()
-#         bb.mean = google_bench.mean(bench)
-
-#         return bb
-
-#     def benchs(jdata):
-#         return jdata["benchmarks"]
-
-#     def parse_names_bench(jdata, name):
-#         return google_bench.parse_bench(google_bench.bench_by_name(google_bench.benchs(jdata), name))
-
-
-# bench_map = {'granite' : google_bench, 'google' : google_bench}
-
-
-# def load_benchs(jdata):
-#     res = {}
-#     for prop in jdata["properties"]:
-#         res[prop["test"]] = [bench for bench in prop["bench"]]
-#     return res
-
-
-
-
-
+import pandas as pd
+import xarray as xr
+import matplotlib.pyplot as plt
+
+
+from prompt_toolkit import prompt
+from prompt_toolkit.history import FileHistory
+from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
+from prompt_toolkit.completion import Completer, Completion
+from prompt_toolkit.application import run_in_terminal
+from prompt_toolkit.key_binding import KeyBindings
+from fuzzyfinder import fuzzyfinder
+
+import click
+
+plt.ion()
+
+commit_list = []
+
+data = []
+
+
+def load_commit_range(nmax = 100):
+    '''
+    if nmax = None -> load everything
+    '''
+    if nmax < 0 : nmax = None
+
+    # Open file, read content and parse it as json
+    str_data = open("data/commit.json").read()
+    data = json.loads(str_data)
+    
+    # select required data slice
+    # If nmax > len(data), the range will stop at len(data)
+    return data[:nmax]
+
+# message = click.edit() # Do it in vim
+
+def eval_to_list(args): 
+    t = [] 
+    for arg in args.split(' '): 
+        tmp = None 
+        try: 
+            tmp = eval(arg) 
+        except: 
+            tmp = eval('"{}"'.format(arg)) 
+        t.append(tmp) 
+    return t
+
+def toto(*args):
+    print("Toto", args)
+    return 'ocucou'
+
+
+def tata(*args):
+    print("Tata", args)
+    return 'acucau'
+
+
+
+import cmd2 as cmd
+from fuzzyfinder import fuzzyfinder
+
+class HelloWorld(cmd.Cmd):
+    """Simple command processor example."""
+    
+    FRIENDS = [ 'Alice', 'Adam', 'Barbara', 'Bob' ]
+    
+    def do_greet(self, person):
+        "Greet the person"
+        if person and person in self.FRIENDS:
+            greeting = 'hi, %s!' % person
+        elif person:
+            greeting = "hello, " + person
+        else:
+            greeting = 'hello'
+        print(greeting)
+    
+    def complete(self, text, state):
+        # print("\nText : {}\nState : {}".format(text, state))
+        # return cmd.Cmd.complete(self, text, state)
+        # print("try with {} and get \n{}".format(self.completenames(''), list(fuzzyfinder(text, self.completenames('')))))
+        return list(fuzzyfinder(text, self.completenames('')))
+    #     return []
+    #     return fuzzyfinder(text, self.complete_help_command('','','',''))
+
+    def complete_greet(self, text, line, begidx, endidx):
+        if not text:
+            completions = self.FRIENDS[:]
+        else:
+            completions = fuzzyfinder(text, self.FRIENDS)
+        return completions
+    
+    def do_EOF(self, line):
+        return True
+
+if __name__ == '__main__':
+    HelloWorld().cmdloop()
+
+
+# analKeywords = ['help']
+
+class AnalCompleter(Completer):
+    def get_completions(self, document, complete_event):
+        word_before_cursor = document.get_word_before_cursor(WORD=True)
+        matches = fuzzyfinder(word_before_cursor, analKeywords)
+        for m in matches:
+            yield Completion(m, start_position=-len(word_before_cursor))
+
+
+while 1:
+    user_input = prompt('> ',
+                        history=FileHistory('history.txt'),
+                        auto_suggest=AutoSuggestFromHistory(),
+                        completer=AnalCompleter())
+
+    try:
+        args = parser.parse_args(user_input.split(' '))
+        print(args)
+        args.cmd()
+
+    except BaseException as be:
+        print(be)
+
+    
+    
+print("Finish")

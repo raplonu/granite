@@ -1,0 +1,32 @@
+{
+    "commit" : "234a2ef",
+    "properties" : [
+        {
+            "test" : "Fun1",
+            "bench" : [
+                {
+                    "file" : "fun1_reg.json",
+                    "type" : "regular",
+                    "generator" : "google",
+                    "bench_name" : "BM_Fun1"
+                },
+                {
+                    "file" : "fun1_runtime.csv",
+                    "type" : "runtime",
+                    "generator" : "granite"
+                }
+            ]
+        },
+        {
+            "test" : "Fun2",
+            "bench" : [
+                {
+                    "file" : "fun2_reg.csv",
+                    "type" : "regular",
+                    "generator" : "granite",
+                    "bench_name" : "BM_Fun1"
+                }
+            ]
+        }
+    ]
+}
