@@ -1,144 +1,63 @@
-import functools as ft
-import funcy as fc
+## Source of an Alpy
 
-import  boltons.cacheutils as cu
-
+import numpy as mp
 import json
-import csv
+import pandas as pd
+import xarray as xr
+import matplotlib.pyplot as plt
+plt.ion()
 
-import numpy as np
-import statistics
-from sklearn.linear_model import LinearRegression
+def load_commit_range(nmax = 100):
+    '''
+    if nmax = None -> load everything
+    '''
+    if nmax < 0 : nmax = None
 
-import operator
+    # Open file, read content and parse it as json
+    str_data = open("data/commit.json").read()
+    data = json.loads(str_data)
+    
+    # select required data slice
+    # If nmax > len(data), the range will stop at len(data)
+    return data[:nmax]
 
-dump_map = lambda func, *args : (lambda *args : None)(*map(func, *args))
+# message = click.edit() # Do it in vim
 
-@fc.decorator
-def partialize(fn):
-    return fc.partial(fn)
+def eval_to_list(args): 
+    t = [] 
+    for arg in args.split(' '): 
+        tmp = None 
+        try: 
+            tmp = eval(arg) 
+        except: 
+            tmp = eval('"{}"'.format(arg)) 
+        t.append(tmp) 
+    return t
 
-decor_and_wraps = lambda fn, *decos: fc.compose(ft.wraps(fn), *decos)
-
-@ft.wraps(cu.cached)
-def cached(cache, scoped=True, typed=False, key=None):
-    return lambda fn : decor_and_wraps(fn,
-        cu.cached(cache, scoped, typed, key))(fn) 
-
-def partialize_cached(cache, scoped=True, typed=False, key=None):
-    return fc.compose(partialize, cached(cache, scoped, typed, key))
-
-file_data_cache = cu.LRU(max_size=128)
-
-@decor_and_wraps(json.load, partialize_cached(file_data_cache))
-def json_load(filename):
-    print("Loading JSON file :{}".format(filename))
-    return json.load(open(filename))
-
-@partialize_cached(file_data_cache)
-def csv_load(filename):
-    print("Loading CSV file :{}".format(filename))
-    return csv.reader(open(filename))
-
-def cached_compose(cache, *funs):
-        @partialize_cached(cache)
-        def compose_apply(funs, *args):
-                return fc.compose(*funs)(*args)
-        return compose_apply(funs)
-
-def cached_rcompose(cache, *funs):
-        @partialize_cached(cache)
-        def rcompose_apply(funs, *args):
-                return fc.rcompose(*funs)(*args)
-        return rcompose_apply(funs)
-
-@partialize
-def print_forward(comment, x):
-        print(comment)
-        return x
-
-@partialize
-def get(key, seq):
-    return seq[key]
-
-@partialize
-def equal_to(arg1, arg2):
-    return arg1 == arg2
-
-first_filter = partialize(fc.compose(fc.first, fc.filter))
-
-@partialize
-def select_values(key, seq):
-    return [s[key] for s in seq]
-
-@partialize
-def find_pos(value, seq):
-    return list(seq).index(value)
-
-def field_match(key, value):
-    return fc.compose(equal_to(value), get(key))
-
-def match_at(value, pos):
-    return fc.compose(equal_to(value), get(pos))
+    
+print("Hello, welcome to ...")
+print('''
+   ____    ,---.   .--.   ____      .---.       ____     __  .-'\''-.     .-''-.  .-------.     
+ .'  __ `. |    \  |  | .'  __ `.   | ,_|       \   \   /  // _     \  .'_ _   \ |  _ _   \    
+/   '  \  \|  ,  \ |  |/   '  \  \,-./  )        \  _. /  '(`' )/`--' / ( ` )   '| ( ' )  |    
+|___|  /  ||  |\_ \|  ||___|  /  |\  '_ '`)       _( )_ .'(_ o _).   . (_ o _)  ||(_ o _) /    
+   _.-`   ||  _( )_\  |   _.-`   | > (_)  )   ___(_ o _)'  (_,_). '. |  (_,_)___|| (_,_).' __  
+.'   _    || (_ o _)  |.'   _    |(  .  .-'  |   |(_,_)'  .---.  \  :'  \   .---.|  |\ \  |  | 
+|  _( )_  ||  (_,_)\  ||  _( )_  | `-'`-'|___|   `-'  /   \    `-'  | \  `-'    /|  | \ `'   / 
+\ (_ o _) /|  |    |  |\ (_ o _) /  |        \\      /     \       /   \       / |  |  \    /  
+ '.(_,_).' '--'    '--' '.(_,_).'   `--------` `-..-'       `-...-'     `'-..-'  ''-'   `'-'   
+                                                                                               
+''')
 
 
 
-jdata = json_load("data/fun1_reg.json")
-cdata = csv_load("data/fun2_reg.csv")
-
-json_find_bench_by_name = lambda name : fc.rcompose(get("benchmarks"), first_filter(field_match("name", name)))
-
-csv_find_bench_by_name = lambda name : first_filter(match_at(name, 0))
-
-regular_google = {
-        'mean' : get('real_time'),
-        'bench' : json_find_bench_by_name
-}
-
-regular_granite = {
-        'mean' : fc.rcompose(get(2), float, int),
-        'bench': csv_find_bench_by_name
-
-}
-
-regular_bench = {
-        'google'  : regular_google,
-        'granite' : regular_granite
-}
-
-runtime_granite = {
-        'raw' : fc.identity,
-        'bench' : lambda name, data : data 
-}
-
-runtime_bench = {
-        'granite' : runtime_granite
-}
-
-benchmarks = {
-        'regular' : regular_bench,
-        'runtime' : runtime_bench
-}
 
 
-prop_cache = cu.LRU(max_size=2048)
+commit_list = []
 
-fun1_jbench = cached_rcompose(prop_cache, jdata,
-        json_find_bench_by_name("BM_Fun1"))
+data = []
 
-fun1_mean = cached_rcompose(prop_cache, fun1_jbench,
-        regular_google['mean'])
+def update_data(nmax = 100):
+    global data
+    data = load_commit_range(nmax)
 
-# fun1_rep = cached_rcompose(prop_cache, fun1_jbench,
-#         get("repetitions"), print_forward('get repetitions'))
-
-
-
-fun2_cbench = cached_rcompose(prop_cache, cdata,
-        csv_find_bench_by_name("BM_Fun2"))
-
-fun2_mean = cached_rcompose(prop_cache, fun2_cbench,
-        regular_granite['mean'])
-
-# fun2_cpu = cached_rcompose(prop_cache, fun2_cbench,
-#         get(3), float, int)
