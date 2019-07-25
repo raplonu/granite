@@ -1,5 +1,6 @@
 import functools as ft
 import funcy as fc
+from funcy import compose, rcompose
 from path import Path
 
 import  boltons.cacheutils as cu
@@ -29,16 +30,35 @@ print('''
    _.-`   ||  _( )_\  |   _.-`   | > (_)  )   ___(_ o _)'  (_,_). '. |  (_,_)___|| (_,_).' __  
 .'   _    || (_ o _)  |.'   _    |(  .  .-'  |   |(_,_)'  .---.  \  :'  \   .---.|  |\ \  |  | 
 |  _( )_  ||  (_,_)\  ||  _( )_  | `-'`-'|___|   `-'  /   \    `-'  | \  `-'    /|  | \ `'   / 
-\ (_ o _) /|  |    |  |\ (_ o _) /  |        \\      /     \       /   \       / |  |  \    /  
+\ (_ o _) /|  |    |  |\ (_ o _) /  |        \\       /     \       /   \       / |  |  \    /  
  '.(_,_).' '--'    '--' '.(_,_).'   `--------` `-..-'       `-...-'     `'-..-'  ''-'   `'-'   
                                                                                                
 ''')
 
-dump_map = lambda func, *args : (lambda *args : None)(*map(func, *args))
 
 @fc.decorator
 def partialize(fn):
     return fc.partial(fn)
+
+# Parital map
+pmap = partialize(map)
+
+# Discard everything
+def void(*_, **__):
+    pass
+
+# Map that directly evaluate the generator and discard the result
+def dump_map(fn, *args):
+    void(*map(fn, *args))
+
+# Will evaluate a function
+def apply(fn):
+    return fn()
+
+# Iter on callable
+def map_apply(iters):
+    return map(apply, iters)
+
 
 decor_and_wraps = lambda fn, *decos: fc.compose(ft.wraps(fn), *decos)
 
@@ -48,41 +68,36 @@ def cached(cache, scoped=True, typed=False, key=None):
         cu.cached(cache, scoped, typed, key))(fn) 
 
 def partialize_cached(cache, scoped=True, typed=False, key=None):
-    return fc.compose(partialize, cached(cache, scoped, typed, key))
+    return fc.compose(partialize, cached(cache, scoped, typed, key)) 
 
+def pcompose(*funs):
+    return partialize(fc.compose(*funs))
 
-def apply(comp):
-    def apply_apply(funs, )
-    return 
+def prcompose(*funs):
+    return partialize(fc.rcompose(*funs))
 
-def cached_compose(cache, *funs):
-    @partialize_cached(cache)
-    def compose_apply(funs, *args):
-            return fc.compose(*funs)(*args)
-    return compose_apply(funs)
+def cached_pcompose(cache, *funs):
+    return partialize_cached(cache)(fc.compose(*funs)) 
 
-def cached_rcompose(cache, *funs):
-    @partialize_cached(cache)
-    def rcompose_apply(funs, *args):
-            return fc.rcompose(*funs)(*args)
-    return rcompose_apply(funs)
+def cached_prcompose(cache, *funs):
+    return partialize_cached(cache)(fc.rcompose(*funs)) 
 
+# def cached_compose(cache, *funs):
+#     @cached(cache)
+#     def compose_apply(*args):
+#             return fc.compose(*funs)(*args)
+#     return compose_apply
 
-def compose(*funs):
-    @partialize
-    def compose_apply(funs, *args):
-            return fc.compose(*funs)(*args)
-    return compose_apply(funs)
+# def cached_rcompose(cache, *funs):
+#     @cached(cache)
+#     def rcompose_apply(*args):
+#             return fc.rcompose(*funs)(*args)
+#     return rcompose_apply
 
-def rcompose(*funs):
-    @partialize
-    def rcompose_apply(funs, *args):
-            return fc.rcompose(*funs)(*args)
-    return rcompose_apply(funs)
 
 @partialize
 def print_forward(comment, x):
-    print(comment)
+    print(comment, x)
     return x
 
 @partialize
@@ -98,11 +113,11 @@ all_filter = partialize(fc.compose(fc.all, fc.filter))
 
 @partialize
 def select_values(key, seq):
-    return [s[key] for s in seq]
+    return {s[key] for s in seq}
 
-@partialize
-def find_pos(value, seq):
-    return list(seq).index(value)
+# @partialize
+# def find_pos(value, seq):
+#     return list(seq).index(value)
 
 def field_match(key, value):
     return fc.compose(equal_to(value), get(key))
@@ -116,12 +131,12 @@ def evaluate(fn): return fn()
 
 file_data_cache = cu.LRU(max_size=128)
 
-@decor_and_wraps(json.load, partialize_cached(file_data_cache))
+@decor_and_wraps(json.load, cached(file_data_cache))
 def json_load(filename):
     print("Loading JSON file :{}".format(filename))
     return json.load(open(filename))
 
-@partialize_cached(file_data_cache)
+@cached(file_data_cache)
 def csv_load(filename):
     print("Loading CSV file :{}".format(filename))
     return csv.reader(open(filename))
@@ -134,27 +149,26 @@ def file_load(filename):
     return file_loader[Path(filename).ext](filename)
 
 
-json_find_bench_by_name = lambda name : fc.rcompose(get("benchmarks"), first_filter(field_match("name", name)))
+# json_find_bench_by_name = lambda name : fc.rcompose(get("benchmarks"), first_filter(field_match("name", name)))
 
-csv_find_bench_by_name = lambda name : first_filter(match_at(name, 0))
+# csv_find_bench_by_name = lambda name : first_filter(match_at(name, 0))
 
 prop_cache = cu.LRU(max_size=2048)
 
-def stick(*iters):
+def flat_iter(*iters):
     '''Generate an unique iterator that iterate through all
     iters given as parameter'''
     for ite in iters:
         for e in ite:
             yield e
 
-
 def concat(*datas, dim=None):
-    return xr.concat(stick(*datas))
+    return xr.concat(list(datas), dim=dim)
+    # return xr.concat(xr.broadcast(flat_iter(*datas)), dim=dim)
 
-@partialize
-def eval_map(fn, *iters):
-    return map(fn, *map(evaluate, iters))
+merge = fc.partial(ft.reduce, operator.or_)
 
+dict_zip = compose(dict, zip)
 
 # def load_function_list(commit):
 #     data = json_load("{}/data.json".format(commit))
@@ -166,57 +180,120 @@ def eval_map(fn, *iters):
 
 dims = ('commit', 'function', 'bench')
 
+zip_dims = fc.partial(dict_zip, dims)
 
 base_directory = Path('data')
-list_file = Path('commit.json')
-data_file = Path('data.json')
 
-commit_list = file_load(base_directory / list_file)
+commit_list_file = Path('commit.json')
+commit_data_file = Path('data.json')
 
-load_data_file = lambda commit: file_load(base_directory / commit / data_file)
+def lazy(fn, *args, **kwargs):
+    return fc.partial(fn, *args, **kwargs)
 
-function_list = lambda commit : cached_rcompose(prop_cache,
-    load_data_file(commit),
-    get('properties'),
-    select_values('test'))
+def commit_data(commit):
+    return file_load(base_directory / commit / commit_data_file)
 
+commit_list = lazy(file_load, base_directory / commit_list_file)
 
+get_function_list = get('properties')
+get_bench_list = get('bench')
 
+get_function_name = get('test')
+get_bench_name = get('type')
 
-f_list = compose(eval_map(function_list))(commit_list)
+get_function_count = len
 
-
-
-# jdata = lambda commit: json_load(base_directory / commit / commit_data)
-
-
-
+find_function_by_name = lambda function_name : first_filter(field_match('test', function_name))
 
 
+# Take commit id
+function_list_of = rcompose(commit_data, get_function_list)
 
-# functions = [cached_rcompose(prop_cache,
-#                 jdata(commit),
-#                 get('properties'),
-#                 select_values('test'))
-#                 for commit in commit_list]
+def toto(commit, f):
+    benchs = get_bench_list(f)
+    f_name = get_function_name(f)
 
-
-
-# data = None
-
-
-
-
-
-
-# set_commit_list()
+    print('Bench of {} {} : {}'.format(commit, f_name, list(map(get_bench_name, benchs))))
+    coords = zip_dims([[commit], [str(f_name)], list(map(compose(str, get_bench_name), benchs))])
+    data = xr.DataArray(np.array(list(map(len, benchs))).reshape(1, 1, len(benchs)),
+        dims=dims, coords=coords)
+    print(data)
+    return data
 
 
-# def get_data()
+def get_data(commit):
+    functions = function_list_of(commit)
+    print('Function : {}'.format(set(map(get_function_name, functions))))
+
+    return ft.reduce(fc.partial(concat, dim=dims[0]), map(lazy(toto, commit), functions))
 
 
 
+    # for f in functions:
+    #     benchs = get_bench_list(f)
+    #     f_name = get_function_name(f)
+    #     print('Bench of {} : {}'.format(f_name, list(map(get_bench_name, benchs))))
+    #     data = xr.DataArray(np.array(benchs).reshape(1, 1, len(benchs))),
+    #         dims=dims, coords=zip_dims([commit, f_name, list(map(get_bench_name, benchs)))
 
+
+
+    # return xr.DataArray()
+
+# class Anal:
+#     def __init__(self):
+#         self.commit_list = commit_list()
+
+
+#     def append()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# Take commit id and function id
+# def bench_list_of(commit, function):
+#         return fc.rcompose(
+#             function_list_of(commit),
+#             find_function_by_name(function),
+#             get_bench_list)()
+
+# Take commit id and function id
+# @partialize
+# def bench_list_of(commit, function):
+#         return fc.rcompose(
+#             function_list_of(commit),
+#             find_function_by_name(function),
+#             get_bench_list)()
+
+# function_name_list_of = prcompose(
+#     function_list_of, apply,
+#     pmap(get_function_name))
+
+# bench_name_list_of = prcompose(
+#     bench_list_of, apply,
+#     pmap(get_bench_name))
 
 
 

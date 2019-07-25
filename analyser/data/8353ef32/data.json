@@ -18,13 +18,13 @@
             ]
         },
         {
-            "test" : "Fun2",
+            "test" : "Fun3",
             "bench" : [
                 {
-                    "file" : "fun2_reg.csv",
+                    "file" : "fun3_reg.csv",
                     "type" : "regular",
                     "generator" : "granite",
-                    "bench_name" : "BM_Fun1"
+                    "bench_name" : "BM_Fun3"
                 }
             ]
         }
