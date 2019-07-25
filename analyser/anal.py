@@ -55,9 +55,8 @@ def dump_map(fn, *args):
 def apply(fn):
     return fn()
 
-# Iter on callable
-def map_apply(iters):
-    return map(apply, iters)
+# directly put result in list
+map_apply = fc.partial(map, apply)
 
 
 decor_and_wraps = lambda fn, *decos: fc.compose(ft.wraps(fn), *decos)
@@ -162,6 +161,7 @@ def flat_iter(*iters):
         for e in ite:
             yield e
 
+@partialize
 def concat(*datas, dim=None):
     return xr.concat(list(datas), dim=dim)
     # return xr.concat(xr.broadcast(flat_iter(*datas)), dim=dim)
@@ -180,7 +180,10 @@ dict_zip = compose(dict, zip)
 
 dims = ('commit', 'function', 'bench')
 
-zip_dims = fc.partial(dict_zip, dims)
+def pack(*args):
+    return args
+
+zip_dims = compose(fc.partial(dict_zip, dims), pack)
 
 base_directory = Path('data')
 
@@ -209,43 +212,31 @@ find_function_by_name = lambda function_name : first_filter(field_match('test', 
 # Take commit id
 function_list_of = rcompose(commit_data, get_function_list)
 
-def toto(commit, f):
-    benchs = get_bench_list(f)
-    f_name = get_function_name(f)
+def bench_array(data, dims, coords):
+    return xr.DataArray(np.array(data).reshape(1, 1, len(data)), dims=dims, coords=coords)
 
-    print('Bench of {} {} : {}'.format(commit, f_name, list(map(get_bench_name, benchs))))
-    coords = zip_dims([[commit], [str(f_name)], list(map(compose(str, get_bench_name), benchs))])
-    data = xr.DataArray(np.array(list(map(len, benchs))).reshape(1, 1, len(benchs)),
-        dims=dims, coords=coords)
-    print(data)
-    return data
+@partialize
+def get_benchs(commit, f):
+    benchs = get_bench_list(f)
+
+    print('Commit at {} {} : {}'.format(commit, get_function_name(f), benchs))
+
+    coords = zip_dims(
+        [commit],
+        [get_function_name(f)],
+        list(map(get_bench_name, benchs)))
+
+    return bench_array(benchs, dims, coords)
 
 
 def get_data(commit):
-    functions = function_list_of(commit)
-    print('Function : {}'.format(set(map(get_function_name, functions))))
-
-    return ft.reduce(fc.partial(concat, dim=dims[0]), map(lazy(toto, commit), functions))
-
+    return ft.reduce(
+        concat(dim=dims[1]),
+        map(get_benchs(commit), function_list_of(commit)))
 
 
-    # for f in functions:
-    #     benchs = get_bench_list(f)
-    #     f_name = get_function_name(f)
-    #     print('Bench of {} : {}'.format(f_name, list(map(get_bench_name, benchs))))
-    #     data = xr.DataArray(np.array(benchs).reshape(1, 1, len(benchs))),
-    #         dims=dims, coords=zip_dims([commit, f_name, list(map(get_bench_name, benchs)))
-
-
-
-    # return xr.DataArray()
-
-# class Anal:
-#     def __init__(self):
-#         self.commit_list = commit_list()
-
-
-#     def append()
+def get_all_data():
+    return ft.reduce(concat(dim=dims[0]), map(get_data, commit_list()))
 
 
 
