@@ -20,6 +20,20 @@ import operator
 
 plt.ion()
 
+print('Hello, welcome to ...')
+print('''
+   ____    ,---.   .--.   ____      .---.       ____     __  .-'\''-.     .-''-.  .-------.     
+ .'  __ `. |    \  |  | .'  __ `.   | ,_|       \   \   /  // _     \  .'_ _   \ |  _ _   \    
+/   '  \  \|  ,  \ |  |/   '  \  \,-./  )        \  _. /  '(`' )/`--' / ( ` )   '| ( ' )  |    
+|___|  /  ||  |\_ \|  ||___|  /  |\  '_ '`)       _( )_ .'(_ o _).   . (_ o _)  ||(_ o _) /    
+   _.-`   ||  _( )_\  |   _.-`   | > (_)  )   ___(_ o _)'  (_,_). '. |  (_,_)___|| (_,_).' __  
+.'   _    || (_ o _)  |.'   _    |(  .  .-'  |   |(_,_)'  .---.  \  :'  \   .---.|  |\ \  |  | 
+|  _( )_  ||  (_,_)\  ||  _( )_  | `-'`-'|___|   `-'  /   \    `-'  | \  `-'    /|  | \ `'   / 
+\ (_ o _) /|  |    |  |\ (_ o _) /  |        \\      /     \       /   \       / |  |  \    /  
+ '.(_,_).' '--'    '--' '.(_,_).'   `--------` `-..-'       `-...-'     `'-..-'  ''-'   `'-'   
+                                                                                               
+''')
+
 dump_map = lambda func, *args : (lambda *args : None)(*map(func, *args))
 
 @fc.decorator
@@ -36,6 +50,11 @@ def cached(cache, scoped=True, typed=False, key=None):
 def partialize_cached(cache, scoped=True, typed=False, key=None):
     return fc.compose(partialize, cached(cache, scoped, typed, key))
 
+
+def apply(comp):
+    def apply_apply(funs, )
+    return 
+
 def cached_compose(cache, *funs):
     @partialize_cached(cache)
     def compose_apply(funs, *args):
@@ -44,6 +63,19 @@ def cached_compose(cache, *funs):
 
 def cached_rcompose(cache, *funs):
     @partialize_cached(cache)
+    def rcompose_apply(funs, *args):
+            return fc.rcompose(*funs)(*args)
+    return rcompose_apply(funs)
+
+
+def compose(*funs):
+    @partialize
+    def compose_apply(funs, *args):
+            return fc.compose(*funs)(*args)
+    return compose_apply(funs)
+
+def rcompose(*funs):
+    @partialize
     def rcompose_apply(funs, *args):
             return fc.rcompose(*funs)(*args)
     return rcompose_apply(funs)
@@ -108,21 +140,6 @@ csv_find_bench_by_name = lambda name : first_filter(match_at(name, 0))
 
 prop_cache = cu.LRU(max_size=2048)
 
-print("Hello, welcome to ...")
-print('''
-   ____    ,---.   .--.   ____      .---.       ____     __  .-'\''-.     .-''-.  .-------.     
- .'  __ `. |    \  |  | .'  __ `.   | ,_|       \   \   /  // _     \  .'_ _   \ |  _ _   \    
-/   '  \  \|  ,  \ |  |/   '  \  \,-./  )        \  _. /  '(`' )/`--' / ( ` )   '| ( ' )  |    
-|___|  /  ||  |\_ \|  ||___|  /  |\  '_ '`)       _( )_ .'(_ o _).   . (_ o _)  ||(_ o _) /    
-   _.-`   ||  _( )_\  |   _.-`   | > (_)  )   ___(_ o _)'  (_,_). '. |  (_,_)___|| (_,_).' __  
-.'   _    || (_ o _)  |.'   _    |(  .  .-'  |   |(_,_)'  .---.  \  :'  \   .---.|  |\ \  |  | 
-|  _( )_  ||  (_,_)\  ||  _( )_  | `-'`-'|___|   `-'  /   \    `-'  | \  `-'    /|  | \ `'   / 
-\ (_ o _) /|  |    |  |\ (_ o _) /  |        \\      /     \       /   \       / |  |  \    /  
- '.(_,_).' '--'    '--' '.(_,_).'   `--------` `-..-'       `-...-'     `'-..-'  ''-'   `'-'   
-                                                                                               
-''')
-
-
 def stick(*iters):
     '''Generate an unique iterator that iterate through all
     iters given as parameter'''
@@ -134,32 +151,9 @@ def stick(*iters):
 def concat(*datas, dim=None):
     return xr.concat(stick(*datas))
 
-# def load_commit_list():#nmax = 100):
-#     '''
-#     if nmax = None -> load everything
-#     '''
-#     # if nmax < 0 : nmax = None
-
-#     # Open file, read content and parse it as json
-
-#     str_data = open("data/commit.json").read()
-#     data = json.loads(str_data)
-    
-#     # select required data slice
-#     # If nmax > len(data), the range will stop at len(data)
-#     return file_load(data/commit.json) #[:nmax]
-
-
-
-
-
-
-
-
-
-
-
-
+@partialize
+def eval_map(fn, *iters):
+    return map(fn, *map(evaluate, iters))
 
 
 # def load_function_list(commit):
@@ -188,7 +182,9 @@ function_list = lambda commit : cached_rcompose(prop_cache,
 
 
 
-f_list = function_list(e) for e in commit_list()]
+
+f_list = compose(eval_map(function_list))(commit_list)
+
 
 
 # jdata = lambda commit: json_load(base_directory / commit / commit_data)
