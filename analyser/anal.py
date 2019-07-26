@@ -1,9 +1,11 @@
 import functools as ft
 import funcy as fc
-from funcy import compose, rcompose
+from funcy import partial, compose, rcompose
+import itertools
 from path import Path
 
 import  boltons.cacheutils as cu
+from cachetools.keys import hashkey
 
 import json
 import csv
@@ -23,76 +25,117 @@ plt.ion()
 
 print('Hello, welcome to ...')
 print('''
-   ____    ,---.   .--.   ____      .---.       ____     __  .-'\''-.     .-''-.  .-------.     
- .'  __ `. |    \  |  | .'  __ `.   | ,_|       \   \   /  // _     \  .'_ _   \ |  _ _   \    
-/   '  \  \|  ,  \ |  |/   '  \  \,-./  )        \  _. /  '(`' )/`--' / ( ` )   '| ( ' )  |    
-|___|  /  ||  |\_ \|  ||___|  /  |\  '_ '`)       _( )_ .'(_ o _).   . (_ o _)  ||(_ o _) /    
-   _.-`   ||  _( )_\  |   _.-`   | > (_)  )   ___(_ o _)'  (_,_). '. |  (_,_)___|| (_,_).' __  
-.'   _    || (_ o _)  |.'   _    |(  .  .-'  |   |(_,_)'  .---.  \  :'  \   .---.|  |\ \  |  | 
-|  _( )_  ||  (_,_)\  ||  _( )_  | `-'`-'|___|   `-'  /   \    `-'  | \  `-'    /|  | \ `'   / 
-\ (_ o _) /|  |    |  |\ (_ o _) /  |        \\       /     \       /   \       / |  |  \    /  
- '.(_,_).' '--'    '--' '.(_,_).'   `--------` `-..-'       `-...-'     `'-..-'  ''-'   `'-'   
-                                                                                               
+   ____   ,---.   .--.  ____     .---.       ____     __ .-'\''-.     .-''-. .-------.     
+ .'  __ `.|    \  |  |.'  __ `.  | ,_|       \   \   /  / _     \  .'_ _   \|  _ _   \    
+/   '  \  \  ,  \ |  /   '  \  ,-./  )        \  _. /  (`' )/`--' / ( ` )   ' ( ' )  |    
+|___|  /  |  |\_ \|  |___|  /  \  '_ '`)       _( )_ .(_ o _).   . (_ o _)  |(_ o _) /    
+   _.-`   |  _( )_\  |  _.-`   |> (_)  )   ___(_ o _)' (_,_). '. |  (_,_)___| (_,_).' __  
+.'   _    | (_ o _)  .'   _    (  .  .-'  |   |(_,_)' .---.  \  :'  \   .---|  |\ \  |  | 
+|  _( )_  |  (_,_)\  |  _( )_  |`-'`-'|___|   `-'  /  \    `-'  | \  `-'    /  | \ `'   / 
+\ (_ o _) /  |    |  \ (_ o _) / |        \       /    \       /   \       /|  |  \    /  
+ '.(_,_).''--'    '--''.(_,_).'  `--------` `-..-'      `-...-'     `'-..-' ''-'   `'-'   
+                                                                                            
 ''')
 
 
+def compose_doc(obj1, obj2):
+    if obj1.__doc__ is None:
+        return obj2.__doc__
+    elif obj2.__doc__ is not None:
+        return obj1.__doc__ + '\n\n' + obj2.__doc__
+    return None
+class Function:
+    def __init__(self, fn, doc = None):
+        self.__fn = fn
+        self.__doc__ = doc if doc is not None else fn.__doc__
+    
+    def __call__(self, *args, **kwargs):
+        return self.__fn(*args, **kwargs)
+
+    def __mul__(self, ofn):
+        return Function(compose(self.__fn, ofn), compose_doc(ofn, self))
+
+    def __or__(self, ofn):
+        return Function(rcompose(self.__fn, ofn), compose_doc(self, ofn))
+
+    def partial(self, *args, **kwargs):
+        return Function(partial(self.__fn, *args, **kwargs), self.__doc__)
+
+    @property
+    def map(self):
+        return Function(partial(map, self.__fn), compose_doc(map, self))
+
+    def cached(self, cache, scoped=True, typed=False):
+        print('@@@@ ', self.__fn.__str__)
+        return Function(cu.cached(cache, key=partial(hashkey, self.__fn.__str__))(self.__fn), self.__doc__)
+
+    # def map(self, *args):
+    #     return Function(partial(map, self.__fn, *args), map + '\n\n' + self.__doc__)
+
+# @fc.decorator
+def boost_fn(fn):
+    return Function(fn)
+
+# Alias of boost_fn
+bf = boost_fn
+
+b_len = boost_fn(len)
+b_map = boost_fn(map)
+b_zip = boost_fn(zip)
+b_list = boost_fn(list)
+b_set = boost_fn(set)
+b_dict = boost_fn(dict)
+b_str = boost_fn(str)
+b_float = boost_fn(float)
+b_int = boost_fn(int)
+
 @fc.decorator
 def partialize(fn):
-    return fc.partial(fn)
+    return partial(fn)
 
 # Parital map
 pmap = partialize(map)
 
 # Discard everything
+@boost_fn
 def void(*_, **__):
     pass
 
 # Map that directly evaluate the generator and discard the result
+@boost_fn
 def dump_map(fn, *args):
     void(*map(fn, *args))
 
 # Will evaluate a function
+@boost_fn
 def apply(fn):
     return fn()
 
-# directly put result in list
-map_apply = fc.partial(map, apply)
+list_map = b_list * b_map
 
 
-decor_and_wraps = lambda fn, *decos: fc.compose(ft.wraps(fn), *decos)
+decor_and_wraps = lambda fn, *decos: compose(ft.wraps(fn), *decos)
 
 @ft.wraps(cu.cached)
 def cached(cache, scoped=True, typed=False, key=None):
     return lambda fn : decor_and_wraps(fn,
         cu.cached(cache, scoped, typed, key))(fn) 
 
+
 def partialize_cached(cache, scoped=True, typed=False, key=None):
     return fc.compose(partialize, cached(cache, scoped, typed, key)) 
 
 def pcompose(*funs):
-    return partialize(fc.compose(*funs))
+    return partialize(compose(*funs))
 
 def prcompose(*funs):
-    return partialize(fc.rcompose(*funs))
+    return partialize(rcompose(*funs))
 
 def cached_pcompose(cache, *funs):
-    return partialize_cached(cache)(fc.compose(*funs)) 
+    return partialize_cached(cache)(compose(*funs)) 
 
 def cached_prcompose(cache, *funs):
-    return partialize_cached(cache)(fc.rcompose(*funs)) 
-
-# def cached_compose(cache, *funs):
-#     @cached(cache)
-#     def compose_apply(*args):
-#             return fc.compose(*funs)(*args)
-#     return compose_apply
-
-# def cached_rcompose(cache, *funs):
-#     @cached(cache)
-#     def rcompose_apply(*args):
-#             return fc.rcompose(*funs)(*args)
-#     return rcompose_apply
-
+    return partialize_cached(cache)(rcompose(*funs)) 
 
 @partialize
 def print_forward(comment, x):
@@ -138,7 +181,7 @@ def json_load(filename):
 @cached(file_data_cache)
 def csv_load(filename):
     print("Loading CSV file :{}".format(filename))
-    return csv.reader(open(filename))
+    return list(csv.reader(open(filename)))
 
 file_loader = {
     '.json' : json_load,
@@ -209,17 +252,57 @@ get_function_count = len
 find_function_by_name = lambda function_name : first_filter(field_match('test', function_name))
 
 
+properties = ['mean', 'min', 'max', 'jitter', 'scale']
+
+
+def get_google_json_mean(path, data):
+    return rcompose(get('benchmarks'), first_filter(field_match('name', get('bench_name')(bench))), get('real_time')) 
+
+def get_granite_csv_mean(path, data):
+    return np.mean(list_map(compose(float, get(0)), data))
+
+
+bench_path = lambda commit, bench : base_directory / commit / get('file')(bench)
+
+
+def get_mean(commit, function, benchs):
+    regular_bench = first_filter(field_match('type', 'regular'))(benchs)
+
+    path = bench_path(commit, regular_bench)
+
+    data = file_load(path)
+
+
+
+
+
+
+
+
+
 # Take commit id
 function_list_of = rcompose(commit_data, get_function_list)
 
+
+# def plot_data(xarr):
+#     pan = xarr.to_pandas()
+#     pan.plot() if pan.dtype is not np.dtype(object) else dump_map(plt.plot, pan)
+
+
 def bench_array(data, dims, coords):
     return xr.DataArray(np.array(data).reshape(1, 1, len(data)), dims=dims, coords=coords)
+
+def compute_props(commit_id, function_id, benchs):
+    for bench in benchs:
+        pass
 
 @partialize
 def get_benchs(commit, f):
     benchs = get_bench_list(f)
 
     print('Commit at {} {} : {}'.format(commit, get_function_name(f), benchs))
+
+    # properties = compute_props(commit, get_function_name(f), benchs)
 
     coords = zip_dims(
         [commit],
@@ -229,6 +312,17 @@ def get_benchs(commit, f):
     return bench_array(benchs, dims, coords)
 
 
+# def data_of(data_f, data_list, dim_id):
+#     return ft.reduce(
+#         concat(dim=dims[dim_id]),
+#         map(data_f, data_list))
+
+# get_commit_data = lambda commit : data_of(get_benchs(commit), function_list_of(commit), 1)
+
+# get_all_data = data_of(get_commit_data, commit_list(), 0)
+
+
+
 def get_data(commit):
     return ft.reduce(
         concat(dim=dims[1]),
@@ -236,11 +330,9 @@ def get_data(commit):
 
 
 def get_all_data():
-    return ft.reduce(concat(dim=dims[0]), map(get_data, commit_list()))
-
-
-
-
+    return ft.reduce(
+        concat(dim=dims[0]),
+        map(get_data, commit_list()))
 
 
 
