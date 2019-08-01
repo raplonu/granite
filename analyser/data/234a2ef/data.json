@@ -22,7 +22,7 @@
             "bench" : [
                 {
                     "type" : "regular",
-                    "generator" : "granite",
+                    "generator" : "google",
                     "file" : "fun2_reg.csv",
                     "bench_name" : "BM_Fun1"
                 }
