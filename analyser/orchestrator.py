@@ -91,45 +91,52 @@ def tail_file(file):
 def load_and_map(files):
     return dict(map(lambda f:(f.name, f.readlines()), map(open, files)))
 
+@boost_fn
+def call_and_log(fn, out_files, log_files):
+        dump_map(tail_file, log_files)
+
+        result = fn()
+
+        log_data = load_and_map(log_files)
+        out_data = load_and_map(out_files)
+
+        return result, out_data, log_data
+
+
 
 class Task(Function):
     def __init__(self, cmd, log_files=None, out_files=None):
-        Function.__init__(self, lambda : self.run())
         self.cmd = cmd
         self.log_files = not_none_fwd_or(log_files, [])
         self.out_files = not_none_fwd_or(out_files, [])
 
-        self.res = None
-
-    def run(self):
-        # set log file cursors at the end
-        dump_map(tail_file, self.log_files)
-
-        result = self.cmd()
-
-        log_data = load_and_map(self.log_files)
-        out_data = load_and_map(self.out_files)
-
-        return result, out_data, log_data
-
-    def __call__(self):
-        if self.res is None:
-            self.res = self.run()
-        return self.res
-
-    def force(self):
-        self.res = self.run()
-        return self.res
+        Function.__init__(self, call_once(call_and_log,
+            self.cmd, self.out_files, self.log_files))
 
     def __repr__(self):
         return repr(self.cmd)
 
 
+@boost_fn
+def google_bench_cmd(exe_path, bench_file = None):
+    bench_file = not_none_fwd_or(bench_file, filename(exe_path) + '.json')
+    cmd = Cmd(exe_path + " --benchmark_out=" + bench_file)
+    cmd()
+    return bench_file
 
-def googleBench(executable, output = None):
-    output = not_none_fwd_or(output, filename(executable) + '.json')
-    cmd = Cmd(executable + " --benchmark_out=" + output)
-    return Task(cmd, out_files=[output])
+@boost_fn
+def format_google_bench(bench_file, bench_name):
+    return {'type' : 'regular',
+        'generator' : 'google',
+        'file' : bench_file,
+        'bench_name' : bench_name}
+
+binary_size = lambda exe : du.format(exe).stdout | (bf(str.split) >> '\t') | get >> 0
+
+@boost_fn
+def format_binary_size(size):
+    return {'type' : 'binary_size',
+        'value' : size}
 
 ls = Cmd('ls')
 du = Cmd('du {}')
@@ -152,15 +159,31 @@ def register_task(task):
     tm.register(task)
     return task
 
-r_register_cmd = register_task * Task
-r_googleBench = register_task * googleBench
+register_once = register_task * call_once
+# r_register_cmd = register_task * Task
+# r_googleBench = register_task * google_bench_cmd
 
-binary_size = lambda exe : du.format(exe).stdout | (bf(str.split) >> '\t') | get >> 0
 
 exe = '../../sandbox/build/benchmark/bench1/SandboxBench1'
 
-gb1 = r_googleBench(exe, 'out.json')
+gb1 = format_google_bench <= register_once(google_bench_cmd, exe, 'out.json')
 
-bin_size = r_register_cmd(binary_size(exe))
+bin_size = format_binary_size <= register_once(binary_size(exe))
 
+def process_dict(d):
+    return match(d,
+        dict, lambda d : dict(zip(d.keys(), process_dict(list(d.values())))),
+        list, lambda l : list(map(process_dict, l)),
+        callable, apply
+    )
+
+res = {}
+
+fun1 = []
+fun1.append(gb1 << 'BM_Fun1')
+res['fun1'] = fun1
+
+binary = []
+binary.append(bin_size)
+res['binary'] = binary
 

@@ -9,7 +9,7 @@ from cachetools.keys import hashkey
 
 import operator
 
-from pampy import match, _
+from pampy import match, REST, _
 
 '''
 MMP""MM""YMM   .g8""8q.     .g8""8q. `7MMF'       .M"""bgd
@@ -43,6 +43,16 @@ def rpartial(fun, *args2, **kwargs2):
         return fun(*args1, *args2, **kwargs1, **kwargs2)
     return rpartial_impl
 
+def apply_partial(fun, *funs):
+    def apply_partial_impl(*args, **kwargs):
+        return fun(*map(apply, funs), *args, **kwargs)
+    return apply_partial_impl
+
+def apply_rpartial(fun, *funs):
+    def apply_rpartial_impl(*args, **kwargs):
+        return fun(*args, *map(apply, funs), **kwargs)
+    return apply_rpartial_impl
+
 class Function:
     def __init__(self, fn):
         self.__fn = fn
@@ -62,6 +72,12 @@ class Function:
     def __rshift__(self, arg):
         return Function(rpartial(self.__fn, arg))
 
+    def __le__(self, fun):
+        return Function(apply_partial(self.__fn, fun))
+
+    def __ge__(self, fun):
+        return Function(apply_rpartial(self.__fn, fun))
+
     @staticmethod
     def filter_fn(fn):
         return fn.__fn if isinstance(fn, Function) else fn
@@ -74,7 +90,7 @@ class Function:
 
     # @property
     # def map(self):
-    #     return Function(partial(map, self.__fn), compose_doc(map, self))
+    #     return Function(partial(map, self.__fn))
 
     # def cached(self, cache, scoped=True, typed=False):
     #     print('@@@@ ', self.__fn.__str__)
