@@ -116,6 +116,29 @@ class Task(Function):
     def __repr__(self):
         return repr(self.cmd)
 
+def process_dict(d):
+    return match(d,
+        dict, lambda d : dict(zip(d.keys(), process_dict(list(d.values())))),
+        list, lambda l : list(map(process_dict, l)),
+        callable, apply
+    )
+
+class TaskManager:
+    def __init__(self):
+        self.tasks = []
+
+    def register(self, task):
+        self.tasks.append(task)
+
+    def resolve(self):
+        dump_map(apply, self.tasks)
+
+tm = TaskManager()
+
+@boost_fn
+def register_task(task):
+    tm.register(task)
+    return task
 
 @boost_fn
 def google_bench_cmd(exe_path, bench_file = None):
@@ -142,26 +165,8 @@ ls = Cmd('ls')
 du = Cmd('du {}')
 grep = Cmd('grep {}')
 
-class TaskManager:
-    def __init__(self):
-        self.tasks = []
-
-    def register(self, task):
-        self.tasks.append(task)
-
-    def resolve(self):
-        dump_map(apply, self.tasks)
-
-tm = TaskManager()
-
-@boost_fn
-def register_task(task):
-    tm.register(task)
-    return task
 
 register_once = register_task * call_once
-# r_register_cmd = register_task * Task
-# r_googleBench = register_task * google_bench_cmd
 
 
 exe = '../../sandbox/build/benchmark/bench1/SandboxBench1'
@@ -170,12 +175,7 @@ gb1 = format_google_bench <= register_once(google_bench_cmd, exe, 'out.json')
 
 bin_size = format_binary_size <= register_once(binary_size(exe))
 
-def process_dict(d):
-    return match(d,
-        dict, lambda d : dict(zip(d.keys(), process_dict(list(d.values())))),
-        list, lambda l : list(map(process_dict, l)),
-        callable, apply
-    )
+
 
 res = {}
 
