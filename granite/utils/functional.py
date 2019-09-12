@@ -2,24 +2,16 @@ import functools as ft
 import funcy as fc
 from funcy import partial, compose, rcompose
 import itertools
-from path import Path
 
 import  boltons.cacheutils as cu
 from cachetools.keys import hashkey
 
 import operator
 
-from pampy import match, REST, _
-
-'''
-MMP""MM""YMM   .g8""8q.     .g8""8q. `7MMF'       .M"""bgd
-P'   MM   `7 .dP'    `YM. .dP'    `YM. MM        ,MI    "Y
-     MM      dM'      `MM dM'      `MM MM        `MMb.
-     MM      MM        MM MM        MM MM          `YMMNq.
-     MM      MM.      ,MP MM.      ,MP MM      , .     `MM
-     MM      `Mb.    ,dP' `Mb.    ,dP' MM     ,M Mb     dM
-   .JMML.      `"bmmd"'     `"bmmd"' .JMMmmmmMMM P"Ybmmd"
-'''
+def to_function(fn):
+    def to_function_impl(*args, **kwargs):
+        return fn(*args, **kwargs)
+    return to_function_impl
 
 class CachedFunction(cu.CachedFunction):
     """This type is used by :func:`cached`, below. This Version fix an issue with
@@ -102,24 +94,31 @@ class Function:
         self.__fn = fn
 
     def __call__(self, *args, **kwargs):
+        '''() operator'''
         return self.__fn(*args, **kwargs)
 
     def __mul__(self, ofn):
+        '''* operator'''
         return Function(compose(self.__fn, Function.filter_fn(ofn)))
 
     def __or__(self, ofn):
+        '''| operator'''
         return Function(rcompose(self.__fn, Function.filter_fn(ofn)))
 
     def __lshift__(self, arg):
+        '''<< operator'''
         return Function(partial(self.__fn, arg))
 
     def __rshift__(self, arg):
+        '''>> operator'''
         return Function(rpartial(self.__fn, arg))
 
     def __le__(self, fun):
+        '''<= operator'''
         return Function(partial_apply(self.__fn, fun))
 
     def __ge__(self, fun):
+        '''>= operator'''
         return Function(rpartial_apply(self.__fn, fun))
 
     @staticmethod
@@ -270,16 +269,25 @@ def dump_map(fn, *args):
     void(*map(fn, *args))
 
 @boost_fn
+def list_at(sequence, pos, default=None):
+    '''Return the value at pos if pos is in the sequence, else default.
+    '''
+    return sequence[pos] if pos < len(sequence) else default
+
+@boost_fn
 def map_at(mappable, key, default=None):
     '''Return the value for key if key is in the dictionary, else default.
     '''
     return mappable.get(key, default)
 
 @boost_fn
-def list_at(sequence, pos, default=None):
-    '''Return the value at pos if pos is in the sequence, else default.
+def map_at_or_implace(mappable, key, default=None):
+    '''Return the value for key if key is in the dictionary, else implace default
+    and return it.
     '''
-    return sequence[pos] if pos < len(sequence) else default
+    if not key in mappable:
+        mappable[key] = default
+    return mappable[key]
 
 @boost_fn
 def equal_to(arg1, arg2):
@@ -309,7 +317,11 @@ def pack(*args):
     return args
 
 @boost_fn
-def apply(*args, **kwargs):
+def apply(fn, *args, **kwargs):
+    return fn(*args, **kwargs)
+
+@boost_fn
+def rapply(*args, **kwargs):
     '''
     A function that will store arguments and use the last one as a function that will be call
 
@@ -336,17 +348,8 @@ def compose_gens(*gens):
         ft.reduce(flat_map, [[data], *gens[::-1]])
 
 @boost_fn
-def filename(path):
-    return Path(path).name
-
-@boost_fn
-def extension(path):
-    return Path(path).ext
-
-@boost_fn
 def explore(keys, data):
     return ft.reduce(operator.getitem, keys, data)
-
 
 @boost_fn
 def call_once(fn, *args, **kwargs):

@@ -1,8 +1,0 @@
-
-#+TITLE: This is a test 
-#+AUTHOR:aplonu
-
-[[www.google.com][surprise]
-
-#+EMAIL: Totituta@gmail.com
-#+TODO : the thing !!

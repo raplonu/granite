@@ -31,5 +31,11 @@
 *.out
 *.app
 
+# Python
+dist
+__pycache__
+*.pyc
+*.egg-info
+
 # Cmake
 build
