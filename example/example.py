@@ -4,6 +4,12 @@ import granite.command.command as cmd
 
 app = gap.GraniteApp()
 
+def show_result(obj):
+    print(obj.result)
+
+app.advertise_system_cmd('result', show_result, 'display raw result structure')
+
+
 # exe = '../../sandbox/build/benchmark/bench1/SandboxBench1'
 
 # gb1 = format_google_bench <= call_once(google_bench_cmd, exe, 'out.json')
