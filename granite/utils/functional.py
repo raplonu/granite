@@ -356,9 +356,13 @@ def call_once(fn, *args, **kwargs):
     fn = partial(fn, *args, **kwargs)
     @boost_fn
     def call_once_impl():
-        if not hasattr(call_once_impl, 'result'):
+        if not call_once_impl.called:
             call_once_impl.result = fn()
+            call_once_impl.called = True
         return call_once_impl.result
+
+    # Add the function member `called`
+    call_once_impl.called = False
     return call_once_impl
 
 @boost_fn

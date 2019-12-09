@@ -55,3 +55,8 @@ def process_container(d):
         Iterable, lambda i : list(map(process_container, i)),
         callable, apply,
         _, fwd)
+
+
+@boost_fn
+def format_bench(data, bench_type, bench_version):
+    return dict(data=data, bench_type=bench_type, bench_version=bench_version)

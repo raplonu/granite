@@ -4,42 +4,27 @@ from cliff.command import Command
 
 from .command import command_manager, simple_command
 from granite.system.system import System
-from granite.utils.functional import boost_fn
+from granite.utils.functional import boost_fn, bf, b_print, map_apply
 
-@boost_fn
-def show_data(obj):
-    print(obj.data)
-
-@boost_fn
-def show_result(obj):
-    print(obj.result)
-
-
-@boost_fn
-def run_data(obj):
-    obj.run()
-
-def register_system_method(system):
-    simple_command('data', 'display raw data structure')(show_data << system)
-    simple_command('result', 'display raw result structure')(show_result << system)
-    simple_command('run', 'process data structure')(run_data << system)
+system_commands = []
 
 class GraniteApp(App):
 
     def __init__(self):
+        # Create the system.
+        self._system = System()
+
+        self.command_manager = CommandManager('granite app')
+
+        # Generate the commands with the system instance and advertise them.
+        map_apply(system_commands << self._system)
+
         super(GraniteApp, self).__init__(
             description='Granite command app',
             version='0.1',
             command_manager=command_manager,
             deferred_help=True,
             )
-        self._system = System()
-
-        register_system_method(self._system)
-
-        # @simple_command('data', 'display raw data structure')
-        # def fun():
-        #     print(self._system.data)
 
     def initialize_app(self, argv):
         self.LOG.info('initialize_app')
@@ -62,4 +47,28 @@ class GraniteApp(App):
         self._system.register_bench(name, bench)
 
 
+    def advertise_command(self, name, command):
+        self.command_manager.add_command(name, command)
 
+    def advertise_simple_command(self, name, fn, doc = None):
+        self.
+
+
+    def advertise_system_cmd(self, name, cmd, doc = None):
+        '''Advertise a cmd that use system data'''
+        simple_command(name, doc)(bf(cmd) << self._system)
+
+def register_system_function(system):
+
+
+@boost_fn
+def show_data(obj):
+    print(obj.data)
+
+
+
+def register_system_method(system):
+    simple_command('data', 'display raw data structure')(show_data << system)
+    # simple_command('result', 'display raw result structure')(show_result << system)
+    simple_command('run', 'process data structure')(
+        bf(System.run) << system)

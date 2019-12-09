@@ -2,7 +2,7 @@ import subprocess as sp
 from string import Formatter
 from operator import add
 
-from .functional import boost_fn, Function, to_function, apply
+from functional import boost_fn, Function, to_function, apply
 
 @boost_fn
 def get_stdout(obj):           return obj.stdout
@@ -78,5 +78,5 @@ class Cmd(Function):
 
 
 ls = Cmd('ls')
-du = Cmd('du {}')
+du = Cmd('du -b {}')
 grep = Cmd('grep {}')

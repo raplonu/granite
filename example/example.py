@@ -23,5 +23,24 @@ app.register_bench('bench', lambda : (print('call'), 42)[1])
 # app.register_bench('bin', bin_size)
 
 
+# register(group_name, bench_name, bench)
+# bench return :
+# {
+#     'data' : { # aka data that is directly send to bdd2
+#         'mean' : 13,
+#         'stddev' : 345,
+#     },
+#     'keep' : { # aka data that is need to be keeped and will produce others data
+#         'data' : {
+#             'filename' : 'ldfj.data',        
+#         },
+#         'format_id' : id, # stote this data with last id            
+#         'format_ver' : last_ver
+#     }
+# }
+
+
+
+
 if __name__ == '__main__':
     sys.exit(app.run(sys.argv[1:]))
