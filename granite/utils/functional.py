@@ -313,8 +313,13 @@ def find_pos(seq, value):
 #     return (equal_to << value) * (at << pos)
 
 @boost_fn
-def pack(*args):
-    return args
+def pack(fn, *args):
+    return fn(args)
+
+@boost_fn
+def unpack(fn, args):
+    return fn(*args)
+
 
 @boost_fn
 def apply(fn, *args, **kwargs):
@@ -324,7 +329,6 @@ def apply(fn, *args, **kwargs):
 def rapply(*args, **kwargs):
     '''
     A function that will store arguments and use the last one as a function that will be call
-
     '''
     *args, fn = args
     return fn(*args, **kwargs)
@@ -373,4 +377,19 @@ def fwd(x):
 def not_none_fwd_or(arg, fallback):
     return arg if arg is not None else fallback
 
+def return_function(fn):
+    def return_function_impl(*args, **kwargs):
+        return fn
+    return return_function_impl
 
+@boost_fn
+def first(range):
+    res, *_ = range
+    return res
+
+@boost_fn
+def tail(range):
+    *_, last = range
+    return last
+
+transpose = unpack << (b_list * zip)
