@@ -22,18 +22,18 @@ class GraniteApp(App):
             command_manager=command_manager,
             deferred_help=True)
 
-        
+
 
     def initialize_app(self, argv):
-        self.LOG.info('initialize_app')
+        self.LOG.debug('initialize_app')
 
     def prepare_to_run_command(self, cmd):
-        self.LOG.info(f'prepare_to_run_command {cmd.__class__.__name__}')
+        self.LOG.debug(f'prepare_to_run_command {cmd.__class__.__name__}')
 
     def clean_up(self, cmd, result, err):
-        self.LOG.info(f'clean_up {cmd.__class__.__name__}')
+        self.LOG.debug(f'clean_up {cmd.__class__.__name__}')
         if err:
-            self.LOG.info(f'got an error: {err}')
+            self.LOG.debug(f'got an error: {err}')
 
     def register(self, data):
         self.system.register(data)

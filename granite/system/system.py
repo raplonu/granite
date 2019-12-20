@@ -1,7 +1,9 @@
 from granite.utils.functional import bf, apply, map_at_or_implace, flat_map, transpose, first
 from granite.bench.bench_utils import process_container
 from granite.command.commands import print_iter
+
 import pandas as pd
+import numpy as np
 
 def init_data_frame(index, columns):
     idx = pd.MultiIndex(levels=[[]] * len(index),
@@ -11,11 +13,8 @@ def init_data_frame(index, columns):
 
 def exec_benchs(bench_callable):
     # Call every bench, separate keys and values then transpose the lists.
-    
-    l = list(map(transpose * dict.items * apply * first, bench_callable.values))
 
-    print("XXXResult : ")
-    print_iter(l)
+    l = list(map(transpose * dict.items * apply * first, bench_callable.values))
 
     columns, values = transpose(l)
 
@@ -25,30 +24,34 @@ def exec_benchs(bench_callable):
     res = pd.concat(data, ignore_index=False, sort=False,
         keys=bench_callable.index, names=['entity', 'bench'])
 
-    # Concat keep the default index of every data elements. We drop it. 
-    res.droplevel(2)
+    # Concat keep the default index of every data elements. We drop it.
+    res = res.droplevel(2)
 
     return res
+
+def prepend_level(data, key, name):
+    return pd.concat([data], keys=[key], names=[name])
+
+
 class System:
     def __init__(self, context = None, bdd_conn = None):
         self.bench = init_data_frame(['entity', 'bench'], ['callable'])
 
-        self.context = context
+        self._context = context
         self.bdd_conn = bdd_conn
 
-
     def register(self, data):
-        '''Register benchs callable with a specific names for different entities.''' 
+        '''Register benchs callable with a specific names for different entities.'''
         for entity_name, benchs in data:
-            self.register_benchs(entity_name, benchs)    
+            self.register_benchs(entity_name, benchs)
 
     def register_benchs(self, entity_name, benchs):
-        '''Register benchs callable with a specific names for a specific entity.''' 
+        '''Register benchs callable with a specific names for a specific entity.'''
         for bench_name, bench in benchs.items:
             self.register_bench(entity_name, bench_name, bench)
 
     def register_bench(self, entity_name, bench_name, bench):
-        '''Register a bench callable with a specific name for a specific entity.''' 
+        '''Register a bench callable with a specific name for a specific entity.'''
         self.bench.loc[(entity_name, bench_name), :] = [bench]
 
     def exec(self, entity_names = slice(None), bench_names = slice(None)):
@@ -56,27 +59,24 @@ class System:
         By default, it will run all benchs.'''
         sub_benchs = self.bench.loc[entity_names, bench_names]
         print("Will run the selected area:")
-        print(sub_benchs)
+        print(sub_benchs.index)
         res = exec_benchs(sub_benchs)
-        print("The result is :")
+        res = prepend_level(res, self._context, 'context')
         print(res)
         # self.store(res)
 
-
-    # def run(self):
-    #     result = process_container(self.data)
-        # Store the result in the bdd
-
     def store(self, result):
-        result.to_sql(self.context, self.conn)
-        self.conn.commit()
+        result.to_sql('benchs', self.bdd_conn, if_exists='append')
+        self.bdd_conn.commit()
 
-    def names(self):
-        return list(set(transpose(self.bench.index)[0]))
+    def entities(self):
+        return np.sort(np.unique(self.bench.index.get_level_values(0)))
 
     def benchs(self):
-        return list(set(transpose(self.bench.index)[1]))
+        return np.sort(np.unique(self.bench.index.get_level_values(1)))
 
+    def context(self):
+        return self._context
 
 
 # res = dict :
@@ -135,7 +135,7 @@ class System:
 #       conn, index_col=['commit', 'config', 'entity', 'attr'])
 
 # select sub space of data :
-# sub = df.loc['234234', 'x86', 'fun2']   
+# sub = df.loc['234234', 'x86', 'fun2']
 # df.xs(('x86', 'scale','fun1'), level=['config', 'attr', 'entity'])
 
 

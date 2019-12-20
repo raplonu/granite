@@ -60,15 +60,22 @@ def print_iter(iter, prefix = '- ', delim = ''):
         print(f'{prefix}{e}{delim}')
 
 
-@app_command('names', None, 'display name list')
+@app_command('entities', None, 'display entity names list')
 def show_name(app, *_):
-    print_iter(app.system.names())
+    print_iter(app.system.entities())
 
 
-@app_command('benchs', None, 'display benchs list')
+@app_command('benchs', None, 'display bench names list')
 def show_benchs(app, *_):
     print_iter(app.system.benchs())
 
+
+@app_command('context', None, 'display bench context')
+def show_benchs(app, *_):
+    print(app.system.context())
+
+
 @app_command('exec', None, 'execute benchs list')
 def show_benchs(app, *_):
+    app.LOG.debug('launching benchs')
     app.system.exec()
