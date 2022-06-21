@@ -2,7 +2,7 @@ pandas==0.24.2
 xarray==0.12.2
 matplotlib==3.1.0
 cachetools==3.1.1
-numpy==1.16.4
+numpy==1.22.0
 boltons==19.1.0
 funcy==1.12
 forked_path==0.2.3

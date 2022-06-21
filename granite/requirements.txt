@@ -4,7 +4,7 @@ funcy==1.14
 matplotlib==3.1.0
 bokeh==1.2.0
 cachetools==3.1.1
-numpy==1.16.4
+numpy==1.22.0
 cliff==2.16.0
 meta==1.0.2
 pampy==0.3.0
